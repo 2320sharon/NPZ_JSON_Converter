@@ -6,6 +6,14 @@ from numpy.lib.npyio import load
 import json
 from classes import *
 
+#                                                   Global Variables
+# -----------------------------------------------------------------------------------------------------------------------
+# increament :
+# used to determine how much to fill the progress bar for each npz file processed
+# -----------------------------------------------------------------------------------------------------------------------
+
+#                                                   Setting up the Log Files
+# -----------------------------------------------------------------------------------------------------------------------
 logger = logging.getLogger(__name__)
 logger.setLevel(logging.INFO)
 formatter = logging.Formatter('%(levelname)s:%(name)s:%(message)s')
@@ -16,27 +24,30 @@ create_filehandler_logger(log_file)
 file_handler = logging.FileHandler(log_file)
 file_handler.setFormatter(formatter)
 logger.addHandler(file_handler)
+#                                                  End of setting up the Log Files
+# -----------------------------------------------------------------------------------------------------------------------
 
-
+#                                                  Setting up Tkinter
+# -----------------------------------------------------------------------------------------------------------------------
 root = Tk(className='Npz to JSON converter')
-root.geometry("667x400") # set window size
+root.geometry("667x400")                                            # set window size
 root.minsize(680,350)
-root['background']='#A2E08E'
-root.tk.call('wm', 'iconphoto', root._w, PhotoImage(file=r'C:\Users\Sharon\USGS_workspace\assets\success.png'))
+root['background']='#A2E08E'                                    
 
-progress_bar=ttk.Progressbar(root,orient=HORIZONTAL,length='300', mode='determinate')
-
+progress_bar=ttk.Progressbar(root,orient=HORIZONTAL,length='300', mode='determinate')     
 progress_bar.grid(row=10,column=3, pady=10)
 
+#                                                  End of Setting up Tkinter
+# -----------------------------------------------------------------------------------------------------------------------
 def stop():
     progress_bar.stop()
 
-def step():
+def step(increament):
     progress_bar['value']+=increament
 
 def empty_progress():
+    """Set the progress bar to empty """
     progress_bar['value']=0
-
 
 #                                                   DIALOG BOXES
 #-----------------------------------------------------------------------------------------------------------------------
@@ -68,7 +79,12 @@ def Success_box(filename_json):
 
 def count_files(file_path):
     if os.path.isdir(file_path):
-        return len([name for name in os.listdir(file_path) if  os.path.isfile(file_path.joinpath(name))])
+        num_files=len([name for name in os.listdir(file_path) if  os.path.isfile(file_path.joinpath(name))])
+        if num_files <= 0:
+            return 0
+        else:
+            return num_files
+
 
 def verify_source_dest_exist():
     source_exist=0
@@ -104,7 +120,7 @@ def delete_empty_json_result(file_path):
         logger.debug("Empty file found. Deleting now.")
         os.remove(file_path)
 
-def read_files(destination_path):
+def read_files(destination_path,increament):
     successful_write=0
     try:
         with open(destination_path,'a') as outfile:
@@ -114,7 +130,7 @@ def read_files(destination_path):
                                 filename,file_extension= os.path.splitext(subentry.name)
                                 obj=JSON_npz(subentry.path, subentry.name);
                                 try:
-                                    step()
+                                    step(increament)
                                     obj.check_file()                         #if its a valid npz file then read the file  
                                     obj.get_user_ID()
                                     try:
@@ -136,7 +152,7 @@ def read_files(destination_path):
     except IOError as file_read_err:
         logger.error(file_read_err)
         Error_box("ERROR cannot read from source_files.")
-    step()
+    step(increament)
     if successful_write:
         logger.debug("\nSuccessful JSON CREATION\n")
         Success_box(destination_path)
@@ -144,7 +160,12 @@ def read_files(destination_path):
         logger.debug("\nUnsuccessful JSON CREATION\n")
 
 def startup():
-    verify_source_dest_exist()
+    verify_source_dest_exist()                                  #On startup verify the source and destination files exist
+    empty_progress()
+    source_path=pathlib.Path.cwd().joinpath("source_files")     #Path to source_files (where the npz files are read from)
+    num_files=count_files(source_path)                          #count the number of files in source_files to be used for the progress bar
+    increament=progress_bar_increament(num_files)               #determines how much progress bar should fill with each npz file read
+    return increament
 
 #                                                   END OF HELPER FUNCTIONS
 #-----------------------------------------------------------------------------------------------------------------------
@@ -163,7 +184,15 @@ button_result = Button(root, text="Open Result", command=open_result)
 button_result.grid(row=5,column=3,pady=10)
 
 def progress_bar_increament(num_files):
-    return 100/num_files
+    try:
+        if num_files==0:
+            return 100                          #There are no files to count so the increament is 100
+        return 100/num_files
+    except ZeroDivisionError as err:
+        logger.error(err)
+        Error_box("There was an error loading the logging files due to no files in source_files being provided. Please add files to the source_files directory.")
+
+
 
 def open_source():
     empty_progress()
@@ -173,10 +202,9 @@ button_source = Button(root, text="Open Source Files", command=open_source)
 button_source.grid(row=5,column=2,pady=10,padx=5)
 
 def run_code():
-    empty_progress()
-    verify_source_dest_exist()
+    increament=startup()
     destination_path=create_destination_file()
-    read_files(destination_path)
+    read_files(destination_path,increament)
     delete_empty_json_result(destination_path)
 button_run = Button(root, text="Run", command=run_code)
 button_run.grid(row=5,column=4 ,pady=10,padx=5)   
@@ -184,8 +212,5 @@ button_run.grid(row=5,column=4 ,pady=10,padx=5)
 
 
 root.wait_visibility()                                #waits until the window is visible
-verify_source_dest_exist()                            #On startup verify the source and destination files exist
-source_path=pathlib.Path.cwd().joinpath("source_files")
-num_files=count_files(source_path)
-increament=progress_bar_increament(num_files)
+startup()                                             #Calculate progressbar increament, checks if source_files and destination_files exist
 root.mainloop()

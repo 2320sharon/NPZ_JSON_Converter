@@ -15,12 +15,12 @@ def make_log_file_path():
       timestampStr = datetime.now().strftime("%d-%b-%Y_%H_%M_%S")
       file_name="log_"+timestampStr+".log"
       dir_path = Path.cwd().joinpath('log_files')
-      print(dir_path)
+      print(f"\nLog files location: {dir_path}")
       if not os.path.exists(dir_path):
-        print(dir_path,"not does exist")
-        os.mkdir(dir_path)
+          print(f"\nLocation does not exist: {dir_path}.\n Creating it now. \n")
+          os.mkdir(dir_path)
       log_path=dir_path.joinpath(file_name)
-      print(log_path)
+      print(f"\nLog: {log_path} has been created. \n")
       return log_path
 
 def create_filehandler_logger(file_log_name): 
