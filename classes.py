@@ -1,4 +1,4 @@
-import os as os                   
+import os as os
 import numpy as np
 from numpy.lib.npyio import load
 import json
@@ -23,7 +23,7 @@ def make_log_file_path():
       print(f"\nLog: {log_path} has been created. \n")
       return log_path
 
-def create_filehandler_logger(file_log_name): 
+def create_filehandler_logger(file_log_name):
       file_handler = logging.FileHandler(file_log_name)
       file_handler.setFormatter(formatter)
       logger.addHandler(file_handler)
@@ -44,8 +44,8 @@ class JSON_npz:
         logger.info(f"A new JSON_npz object was created for file: {self.file_path}")
 
     def check_file(self):
-     """check_file(self): checks if the file given is an .npz file or not. 
-        
+     """check_file(self): checks if the file given is an .npz file or not.
+
         Returns nothing
 
         Args:
@@ -58,7 +58,7 @@ class JSON_npz:
      if file_extension != ".npz":                                                            #if npz file does not exist throw an exception
         logger.error(f"ERROR \n Invalid file type {file_extension} is not allowed only .npz files! \n File: {self.file_path} is not a valid .npz file. \n End of ERROR")
         raise IncorrectFileTypeException(filename=self.file_name)
-    
+
     def get_user_ID(self):
      """Returns the user_ID by using the file name.
 
@@ -78,7 +78,7 @@ class JSON_npz:
         self.user_ID = 'anon'
      logger.info(f"\n USER ID: {self.user_ID} for file: {self.file_name}")
      return self.user_ID
-    
+
     def read_npz(self):
      """read_npz: Reads the contents of the npz file and transforms it into a dictionary.
 
@@ -110,73 +110,112 @@ class JSON_npz:
          logger.error(err)
          raise  NPZCorruptException(msg=err.__str__)
 
-     #keys of the new dictionary    
+     #keys of the new dictionary
 
      #array of class names
      try:
       classes_array = data['classes']
       classes_array=classes_array.tolist()
       num_classes = len(classes_array)
- 
+
       # classes as integers
       classes_integer = np.arange(1,num_classes)
       classes_integer=classes_integer.tolist()
- 
+
       #classes acyually present in the scene
       #unique finds all the unique items in an array and returns an array containing those items and flattens it into 1d [1,2],[3,4] becomes [1,2,3,4]
       classes_present_integer = np.unique(data['label'].flatten())
       classes_present_integer=classes_present_integer.tolist()
- 
- 
+
       #classes present as string
       #uses the indexes from the classes_present_integer to generate a string for all the classes present in the image
       classes_present_array = [data['classes'][k] for k in classes_present_integer]
- 
+
       #pen width
       pen_width =  data['settings'][0]
- 
+
       #CRF_theta
       CRF_theta =  data['settings'][1]
- 
+
       #CRF_mu
       CRF_mu =  data['settings'][2]
- 
+
       #CRF_downsample_factor
       CRF_downsample_factor =  data['settings'][3]
-  
+
       #Classifier_downsample_factor
       Classifier_downsample_factor =  data['settings'][4]
-  
+
       #prob_of_unary_potential
       prob_of_unary_potential =  data['settings'][5]
       doodle_spatial_density = np.sum(data['doodles'].flatten()>0) / np.prod(np.shape(data['doodles']))
-  
+
       ##number of input image bands
       num_image_bands = np.ndim(data['image'])
+
+      #name of image and label image that will be generated from the npz files
+      if self.user_ID == 'anon':
+          image_filename = self.file_path.split(os.sep)[-1]+'_image.jpg'.replace(self.file_name.split('.npz')[0].split('_')[-1], 'anon')
+          label_image_filename = self.file_path.split(os.sep)[-1]+'_label.png'.replace(self.file_name.split('.npz')[0].split('_')[-1], 'anon')
+          annotation_image_filename = self.file_path.split(os.sep)[-1]+'_annotation.png'.replace(self.file_name.split('.npz')[0].split('_')[-1], 'anon')
+      else:
+          image_filename = self.file_path.split(os.sep)[-1]+'_image.jpg'
+          label_image_filename = self.file_path.split(os.sep)[-1]+'_label.png'
+          annotation_image_filename = self.file_path.split(os.sep)[-1]+'_annotation.png'
+
      except KeyError as keyerr:
          logger.error(keyerr)
          raise NPZCorruptException(msg="The contents of the NPZ file are invalid.")
 
+     # ####+==================================================================================================
+     # ##DB's version of this code that also writes out the images, labels and annotation labesl to files
+     # write_images = True
+     # if write_images:
+     #    from skimage import io
+     #    try:
+     #        os.mkdir('destination_images')
+     #    except:
+     #        pass
+     #    try:
+     #        os.mkdir('destination_images'+os.sep+'image_files')
+     #        os.mkdir('destination_images'+os.sep+'label_files')
+     #        os.mkdir('destination_images'+os.sep+'annotation_files')
+     #    except:
+     #        pass
+     #
+     #    print('destination_images'+os.sep+'image_files'+os.sep+image_filename)
+     #    io.imsave('destination_images'+os.sep+'image_files'+os.sep+image_filename,
+     #            data['image'].astype('uint8').squeeze(), quality=100, chroma_subsampling=False)
+     #    io.imsave('destination_images'+os.sep+'label_files'+os.sep+label_image_filename,
+     #            np.argmax(data['label'].astype('uint8'),-1).squeeze(),  compression=0)
+     #    io.imsave('destination_images'+os.sep+'annotation_files'+os.sep+annotation_image_filename,
+     #            data['doodles'].astype('uint8').squeeze(), compression=0)
+     # ####+==================================================================================================
+     # ####+==================================================================================================
+     # ####+==================================================================================================
+
      ## make lists to construct a dictionary (there's probably a better way)
-     variables = [self.user_ID, classes_array, num_classes, classes_integer,
-                 classes_present_integer, classes_present_array, 
+     variables = [image_filename, label_image_filename, annotation_image_filename,
+                 self.user_ID, classes_array, num_classes, classes_integer,
+                 classes_present_integer, classes_present_array,
                  pen_width, CRF_theta, CRF_mu, CRF_downsample_factor,
                  Classifier_downsample_factor, prob_of_unary_potential,
                  doodle_spatial_density, num_image_bands]
-                 
-     variable_names = ['user_ID', 'classes_array', 'num_classes', 'classes_integer',
-                 'classes_present_integer', 'classes_present_array', 
+
+     variable_names = ['image_filename', 'label_image_filename', 'annotation_image_filename',
+                 'user_ID', 'classes_array', 'num_classes', 'classes_integer',
+                 'classes_present_integer', 'classes_present_array',
                  'pen_width', 'CRF_theta', 'CRF_mu', 'CRF_downsample_factor',
                  'Classifier_downsample_factor', 'prob_of_unary_potential',
                  'doodle_spatial_density']
-                 
+
      info_for_mongo = dict()
      for n,v in zip(variable_names,variables):
          info_for_mongo[n] = v
- 
+
      logger.info(f"\nMongo Dict: {info_for_mongo}\nFile:{self.file_name}\n")
      return info_for_mongo
- 
+
     def create_json(self,mong_dict):
         try:
             mongo_json=json.dumps(mong_dict)

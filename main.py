@@ -32,9 +32,9 @@ logger.addHandler(file_handler)
 root = Tk(className='Npz to JSON converter')
 root.geometry("667x400")                                            # set window size
 root.minsize(680,350)
-root['background']='#A2E08E'                                    
+root['background']='#A2E08E'
 
-progress_bar=ttk.Progressbar(root,orient=HORIZONTAL,length='300', mode='determinate')     
+progress_bar=ttk.Progressbar(root,orient=HORIZONTAL,length='300', mode='determinate')
 progress_bar.grid(row=10,column=3, pady=10)
 
 #                                                  End of Setting up Tkinter
@@ -58,7 +58,10 @@ def Error_box(msg):
 def EmptySource_box():
     MsgBox = messagebox.askquestion ('Empty Source Folder',"You don\'t have any npz files in your source_files. \n Would you like to add some npz files?",icon = 'warning')
     if MsgBox == 'yes':
-       os.startfile( Path.cwd().joinpath('source_files'), 'open')
+        if os.name != 'posix':
+            os.startfile( Path.cwd().joinpath('source_files'), 'open')
+        else:
+            os.system('xdg-open '+os.getcwd()+os.sep+'source_files')
     else:
         messagebox.showerror(title='Exit', message='There are no npz files in source_files directory.\nExiting now')
         root.quit()
@@ -67,13 +70,13 @@ def Invalid_npz_box(filename):
         messagebox.showerror(title='Exit', message=f"{filename} was not a valid npz file and was skipped.")
 
 def Success_box(filename_json):
-        messagebox.showinfo(title='Success', message=f"{filename_json} was generated",icon='info')        
+        messagebox.showinfo(title='Success', message=f"{filename_json} was generated",icon='info')
 
 #                                                   End of DIALOG BOXES
-#-----------------------------------------------------------------------------------------------------------------------    
+#-----------------------------------------------------------------------------------------------------------------------
 
 
-#   
+#
 #                                                HELPER FUNCTIONS FOR READING NPZ FILES
 #-----------------------------------------------------------------------------------------------------------------------
 
@@ -89,15 +92,15 @@ def count_files(file_path):
 def verify_source_dest_exist():
     source_exist=0
     dest_exist=0
-    for entry in os.scandir(Path.cwd()):                                         #check for the source or destination folders 
-            if entry.is_dir():                                                      
-                if entry.name == r"source_files": 
+    for entry in os.scandir(Path.cwd()):                                         #check for the source or destination folders
+            if entry.is_dir():
+                if entry.name == r"source_files":
                     source_exist= 1                                              #Set source_exist because source_files exists otherwise it stays 0
                     #check if there are any files in source_files
                     if not os.listdir(entry.path):
                         logger.debug("The source_files folder is empty")
                         EmptySource_box()
-                elif entry.name == r"destination_files": 
+                elif entry.name == r"destination_files":
                     dest_exist=1
     # If either the source_files or destination_files do not exist create it
     if not source_exist :
@@ -124,14 +127,14 @@ def read_files(destination_path,increament):
     successful_write=0
     try:
         with open(destination_path,'a') as outfile:
-            for entry in os.scandir(Path.cwd()):              
-                    if entry.is_dir() and entry.name == r"source_files":                                                      
-                            for subentry in os.scandir(entry.path):                  
+            for entry in os.scandir(Path.cwd()):
+                    if entry.is_dir() and entry.name == r"source_files":
+                            for subentry in os.scandir(entry.path):
                                 filename,file_extension= os.path.splitext(subentry.name)
                                 obj=JSON_npz(subentry.path, subentry.name);
                                 try:
                                     step(increament)
-                                    obj.check_file()                         #if its a valid npz file then read the file  
+                                    obj.check_file()                         #if its a valid npz file then read the file
                                     obj.get_user_ID()
                                     try:
                                         mongo_dict=obj.read_npz()
@@ -179,7 +182,10 @@ label_instructions.grid(row=2,column=3,pady=10)
 def open_result():
     empty_progress()
     verify_source_dest_exist()
-    os.startfile(Path.cwd().joinpath('destination_files'), 'open')
+    if os.name != 'posix':
+        os.startfile(Path.cwd().joinpath('destination_files'), 'open')
+    else:
+        os.system('xdg-open '+os.getcwd()+os.sep+'destination_files')
 button_result = Button(root, text="Open Result", command=open_result)
 button_result.grid(row=5,column=3,pady=10)
 
@@ -197,7 +203,11 @@ def progress_bar_increament(num_files):
 def open_source():
     empty_progress()
     verify_source_dest_exist()
-    os.startfile( Path.cwd().joinpath('source_files'), 'open')
+    if os.name != 'posix':
+        os.startfile( Path.cwd().joinpath('source_files'), 'open')
+    else:
+        os.system('xdg-open '+os.getcwd()+os.sep+'source_files')
+
 button_source = Button(root, text="Open Source Files", command=open_source)
 button_source.grid(row=5,column=2,pady=10,padx=5)
 
@@ -207,7 +217,7 @@ def run_code():
     read_files(destination_path,increament)
     delete_empty_json_result(destination_path)
 button_run = Button(root, text="Run", command=run_code)
-button_run.grid(row=5,column=4 ,pady=10,padx=5)   
+button_run.grid(row=5,column=4 ,pady=10,padx=5)
 
 
 
