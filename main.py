@@ -25,7 +25,7 @@ logger.addHandler(file_handler)
 
 #Defining my colors
 # ---------------------------------
-background_color ='#290628'
+background_color ='#10002b'
 button_purple="#6200B3"
 #----------------------------------
 
