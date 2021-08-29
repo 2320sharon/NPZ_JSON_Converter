@@ -26,6 +26,19 @@ class IncorrectFileTypeException(Exception):
            return (f"The file : {self.filename} is an invalid file type. It must be npz.") 
         return (f"{self.msg}")
 
+class EmptyFile(Exception):
+    """EmptyFile: raised when a there are no .npz files.
+
+    Args:
+        Exception: Inherits from the base exception class
+    """
+    def __init__(self, msg="No valid .npz files were provided."):
+        self.msg=msg
+        super().__init__(self.msg)
+    def __str__(self):
+        return (f"{self.msg}")
+
+
 class UltimateException(Exception):
     """UltimateException: raised when a file the error is not recoverable forcing the program to quit.
 

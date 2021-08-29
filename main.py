@@ -5,6 +5,7 @@ import os
 from numpy.lib.npyio import load
 import json
 from classes import *
+import pathlib
 
 #if you want to pass variable to functions from buttons use button=(root,text="sample",command=Lambda: funcion(var))
 
@@ -68,15 +69,12 @@ def Error_box(msg):
     messagebox.showerror(title='ERROR', message=f"{msg}\nThere has been an unrecoverable error.\nExiting now")
     root.quit()
 
-def EmptySource_box():
-    MsgBox = messagebox.askquestion ('Empty Source Folder',"You don\'t have any npz files in your source_files. \n Would you like to add some npz files?",icon = 'warning')
+def EmptySource_box(npz_path):
+    MsgBox = messagebox.askquestion (title=f"Would you like to add some .npz files?",message=f"You don\'t have any npz files at the location:\n {npz_path}.\n Would you like to add some .npz files?",icon = 'warning')
     if MsgBox == 'yes':
-        if os.name != 'posix':
-            os.startfile( Path.cwd().joinpath('source_files'), 'open')
-        else:
-            os.system('xdg-open '+os.getcwd()+os.sep+'source_files')
+        open_file_dialog()
     else:
-        messagebox.showerror(title='Exit', message='There are no npz files in source_files directory.\nExiting now')
+        messagebox.showerror(title='Exit', message=f"There are no npz files in {npz_path} directory.\nExiting now")
         root.quit()
 
 def Invalid_npz_box(filename):
@@ -101,12 +99,13 @@ def count_files(file_path):
         else:
             return num_files
 
-def verify_source_dest_exist():
+def verify_destination_exists():
     dest_exist=0
     for entry in os.scandir(Path.cwd()):                                         #check for the source or destination folders
             if entry.is_dir() and entry.name == r"destination_files":
                 dest_exist=1
-    # If either the destination_files do not exist create it
+                break                       #exit the loop early because we don't care about the rest
+    # If either the destination_files does not exist create it
     if not dest_exist :
                 logger.debug("\n The directory destination_files is missing and will be created.")
                 os.mkdir("destination_files")
@@ -124,39 +123,44 @@ def delete_empty_json_result(file_path):
         logger.debug("Empty file found. Deleting now.")
         os.remove(file_path)
 
-def read_files(destination_path,increament):
+def read_files(source_path,npz_list,destination_path,increament):
     successful_write=0
+    if npz_list == []:
+        logger.exception("Empty listbox provided")
+        EmptySource_box(source_path)
+        return
     try:
         with open(destination_path,'a') as outfile:
-            for entry in os.scandir(Path.cwd()):
-                    if entry.is_dir() and entry.name == r"source_files":
-                            for subentry in os.scandir(entry.path):
-                                filename,file_extension= os.path.splitext(subentry.name)
-                                obj=JSON_npz(subentry.path, subentry.name);
-                                try:
-                                    step(increament)
-                                    obj.check_file()                         #if its a valid npz file then read the file
-                                    obj.get_user_ID()
-                                    try:
-                                        mongo_dict=obj.read_npz()
-                                        try:
-                                            json_data=obj.create_json(mongo_dict)
-                                            outfile.write(json_data)                #write the json data to the json file
-                                            outfile.write("\n")                     #put a new line character after each json write
-                                            successful_write=1
-                                        except UltimateException as strong_error:
-                                            logger.exception(strong_error)
-                                            Error_box("ERROR: Cannot write to the file.")
-                                    except NPZCorruptException as err:
-                                        logger.exception(err)
-                                        Invalid_npz_box(filename)
-                                except IncorrectFileTypeException as npz_file_error:
-                                    logger.exception(npz_file_error)
-                                    Invalid_npz_box(filename)
+            for entry in npz_list:
+                npz_file_path=source_path.joinpath(entry)
+                print(npz_file_path)
+                filename,file_extension= os.path.splitext(npz_file_path.name)
+                print(filename,file_extension)
+                obj=JSON_npz(npz_file_path, npz_file_path.name);
+                try:
+                    # step(increament)
+                    obj.check_file()                         #if its a valid npz file then read the file
+                    obj.get_user_ID()
+                    try:
+                        mongo_dict=obj.read_npz()
+                        try:
+                            json_data=obj.create_json(mongo_dict)
+                            outfile.write(json_data)                #write the json data to the json file
+                            outfile.write("\n")                     #put a new line character after each json write
+                            successful_write=1
+                        except UltimateException as strong_error:
+                            logger.exception(strong_error)
+                            Error_box("ERROR: Cannot create a JSON file exiting now.")
+                    except NPZCorruptException as err:
+                        logger.exception(err)
+                        Invalid_npz_box(filename)
+                except IncorrectFileTypeException as npz_file_error:
+                    logger.exception(npz_file_error)
+                    Invalid_npz_box(filename)
     except IOError as file_read_err:
         logger.error(file_read_err)
-        Error_box("ERROR cannot read from source_files.")
-    step(increament)
+        Error_box("ERROR cannot read any files from {source_path}}.")
+    # step(increament)
     if successful_write:
         logger.debug("\nSuccessful JSON CREATION\n")
         Success_box(destination_path)
@@ -164,7 +168,7 @@ def read_files(destination_path,increament):
         logger.debug("\nUnsuccessful JSON CREATION\n")
 
 def startup():
-    # verify_source_dest_exist()                                  #On startup verify the source and destination files exist
+    # verify_destination_exists()                                  #On startup verify the source and destination files exist
     empty_progress()
     source_path=pathlib.Path.cwd().joinpath("source_files")     #Path to source_files (where the npz files are read from)
     num_files=count_files(source_path)                          #count the number of files in source_files to be used for the progress bar
@@ -248,11 +252,11 @@ folder_frame.pack(side='left',padx=10,pady=10)
 #global StringVar method of changing a label
 text = StringVar()
 text.set('')                        #this allows  the text within the label to change
-label=Label(folder_frame, textvariable=text)
-label.config( foreground= "white",background=background_color)
-label.grid(row=1,column=0)
+path_label=Label(folder_frame, textvariable=text)
+path_label.config( foreground= "white",background=background_color)
+path_label.grid(row=1,column=0)
 
-#Label instrctions for path to .npz
+#path_label instrctions for path to .npz
 label_folder_instr=Label(folder_frame,text="Directory containing .npz files:")
 label_folder_instr.config( foreground= "white",background=background_color)
 label_folder_instr.grid(row=0,column=0)
@@ -298,7 +302,7 @@ delete_button.pack(side='bottom',pady=30)
 
 def open_result():
     empty_progress()
-    verify_source_dest_exist()
+    verify_destination_exists()
     if os.name != 'posix':
         os.startfile(Path.cwd().joinpath('destination_files'), 'open')
     else:
@@ -319,7 +323,7 @@ def progress_bar_increament(num_files):
 
 def open_source():
     empty_progress()
-    verify_source_dest_exist()
+    verify_destination_exists()
     if os.name != 'posix':
         os.startfile( Path.cwd().joinpath('source_files'), 'open')
     else:
@@ -328,7 +332,14 @@ def open_source():
 def run_code():
     increament=startup()
     destination_path=create_destination_file()
-    read_files(destination_path,increament)
+    path_npz_str = path_label.cget("text")                          #receieves the path where the files are located.
+    print(path_npz_str)
+    print(type(path_npz_str))
+    path_npz=pathlib.Path(str(path_npz_str))
+    print(path_npz)
+    print(type(path_npz))
+    npz_list=read_npz_listbox()                                 #gets the list of npz files from the listbox.
+    read_files(path_npz,npz_list,destination_path,increament)
     delete_empty_json_result(destination_path)
 
 button_run = Button(root, text="Run", command=run_code,background=button_purple,fg="white")

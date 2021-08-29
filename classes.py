@@ -155,13 +155,13 @@ class JSON_npz:
 
       #name of image and label image that will be generated from the npz files
       if self.user_ID == 'anon':
-          image_filename = self.file_path.split(os.sep)[-1]+'_image.jpg'.replace(self.file_name.split('.npz')[0].split('_')[-1], 'anon')
-          label_image_filename = self.file_path.split(os.sep)[-1]+'_label.png'.replace(self.file_name.split('.npz')[0].split('_')[-1], 'anon')
-          annotation_image_filename = self.file_path.split(os.sep)[-1]+'_annotation.png'.replace(self.file_name.split('.npz')[0].split('_')[-1], 'anon')
+          image_filename = str(self.file_path).split(os.sep)[-1]+'_image.jpg'.replace(self.file_name.split('.npz')[0].split('_')[-1], 'anon')
+          label_image_filename = str(self.file_path).split(os.sep)[-1]+'_label.png'.replace(self.file_name.split('.npz')[0].split('_')[-1], 'anon')
+          annotation_image_filename = str(self.file_path).split(os.sep)[-1]+'_annotation.png'.replace(self.file_name.split('.npz')[0].split('_')[-1], 'anon')
       else:
-          image_filename = self.file_path.split(os.sep)[-1]+'_image.jpg'
-          label_image_filename = self.file_path.split(os.sep)[-1]+'_label.png'
-          annotation_image_filename = self.file_path.split(os.sep)[-1]+'_annotation.png'
+          image_filename = str(self.file_path).split(os.sep)[-1]+'_image.jpg'
+          label_image_filename =  str(self.file_path).split(os.sep)[-1]+'_label.png'
+          annotation_image_filename =  str(self.file_path).split(os.sep)[-1]+'_annotation.png'
 
      except KeyError as keyerr:
          logger.error(keyerr)
