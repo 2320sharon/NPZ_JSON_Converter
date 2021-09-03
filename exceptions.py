@@ -1,7 +1,5 @@
-
 class NPZCorruptException(Exception):
     """NPZCorruptException: raised when an npz file is in an invalid format
-
     Args:
         Exception: Inherits from the base exception class
     """
@@ -13,7 +11,6 @@ class NPZCorruptException(Exception):
 
 class IncorrectFileTypeException(Exception):
     """IncorrectFileTypeException: raised when a file is not a .npz type of file.
-
     Args:
         Exception: Inherits from the base exception class
     """
@@ -28,7 +25,6 @@ class IncorrectFileTypeException(Exception):
 
 class EmptyFile(Exception):
     """EmptyFile: raised when a there are no .npz files.
-
     Args:
         Exception: Inherits from the base exception class
     """
@@ -41,7 +37,6 @@ class EmptyFile(Exception):
 
 class UltimateException(Exception):
     """UltimateException: raised when a file the error is not recoverable forcing the program to quit.
-
     Args:
         Exception: Inherits from the base exception class
     """

@@ -1,13 +1,58 @@
-from tkinter import *
+import tkinter as tk
 from tkinter import Button, Label, filedialog, messagebox, ttk
-import numpy as np
 import os
 from numpy.lib.npyio import load
 import json
 from classes import *
-import pathlib
+import pathlib 
 
 #if you want to pass variable to functions from buttons use button=(root,text="sample",command=Lambda: funcion(var))
+
+#                                   Helper Functions
+#------------------------------------------------------------------------------------------------------------------------
+def create_destination_file():
+    timestampStr = datetime.now().strftime("%d-%b-%Y_%H_%M_%S")
+    dest_file="npz_data_"+timestampStr+".json"
+    result_path = pathlib.Path.cwd().joinpath('destination_files')
+    destination_path=result_path.joinpath(dest_file)
+    return destination_path
+
+def delete_empty_file(file_path):
+    """delete_empty_file: Checks if json file generated is empty and if it is then it is deleted"""
+    if os.path.exists(file_path) and os.stat(file_path).st_size == 0:
+        logger.debug("Empty file found. Deleting now.")
+        os.remove(file_path)
+
+def check_folder_exists(path_name,foldername):
+    for entry in os.scandir(path_name):          
+        if entry.is_dir() and entry.name == f"{foldername}":
+                print("\nThis dir does exist\n")
+                return True
+    print("\nThis dir does NOT exist\n")
+    return False
+
+def verify_destination_exists():
+    if not check_folder_exists(Path.cwd(),"destination_files"):
+        logger.debug("\n The directory destination_files is missing and will be created.")
+        os.mkdir("destination_files")
+
+def open_result():
+    verify_destination_exists()
+    if os.name != 'posix':
+        os.startfile(pathlib.Path.cwd().joinpath('destination_files'), 'open')
+    else:
+        os.system('xdg-open '+os.getcwd()+os.sep+'destination_files')
+
+def open_source():
+    verify_destination_exists()
+    if os.name != 'posix':
+        os.startfile( pathlib.Path.cwd().joinpath('source_files'), 'open')
+    else:
+        os.system('xdg-open '+os.getcwd()+os.sep+'source_files')
+
+#                                   End Helper Functions
+#------------------------------------------------------------------------------------------------------------------------
+
 
 #                                                   Setting up the Log Files
 # -----------------------------------------------------------------------------------------------------------------------
@@ -24,329 +69,265 @@ logger.addHandler(file_handler)
 #                                                  End of setting up the Log Files
 # -----------------------------------------------------------------------------------------------------------------------
 
-#Defining my colors
-# ---------------------------------
-background_color ='#10002b'
-button_purple="#6200B3"
-#----------------------------------
+class InstructionFrame(tk.Frame):
+    def __init__(self,parent):
+        super().__init__(parent,background=parent.background_color)
+        self.__create_widgets(parent)
+    
+    def __create_widgets(self,parent):
+        label_title =  tk.Label(self, text="\nNPZ to JSON converter\n")
+        label_title.config( foreground= "white",background='#10002b')
+        label_title.grid(row=0,column=2,pady=5)
 
-#                                                  Setting up Tkinter
-# -----------------------------------------------------------------------------------------------------------------------
-root = Tk(className='Npz to JSON converter')
-window_width = 910
-window_height = 480
-# get the screen dimension
-screen_width = root.winfo_screenwidth()
-screen_height = root.winfo_screenheight()
-# find the center point
-center_x = int(screen_width/2 - window_width / 2)
-center_y = int(screen_height/2 - window_height / 2)
-# set the position of the window to the center of the screen
-root.geometry(f'{window_width}x{window_height}+{center_x}+{center_y}')
-root.minsize(window_width,window_height)
-root['background']=background_color
-root.attributes('-alpha',0.95)          #makes the GUI transparent
-#-------------------------------------------------------------------------------------
+        label_instructions = tk.Label(self, text="Instructions:\n1. Select the folder where the .npz files are located by using the \"Select npz Folder\" button.\n2. Click the \"Convert\" button to convert the .npx files to .json.\n3. Click \"Open Result\" to see your resulting json file. ")
+        label_instructions.config( foreground= "white",background='#10002b')
+        label_instructions.grid(row=0,column=2,pady=5)
+        
+class MainApp(tk.Tk):
 
-progress_bar=ttk.Progressbar(root,orient=HORIZONTAL,length='300', mode='determinate')
-# progress_bar.grid(row=10,column=3, pady=10)
+     #Defining App colors
+    # ---------------------------------
+    background_color ='#10002b'
+    button_purple="#6200B3"
+    #----------------------------------
 
-#                                                  End of Setting up Tkinter
-# -----------------------------------------------------------------------------------------------------------------------
-def stop():
-    progress_bar.stop()
+    #                                                   DIALOG BOXES
+    #-----------------------------------------------------------------------------------------------------------------------
+    def Error_box(self,msg):
+        messagebox.showerror(title='ERROR', message=f"{msg}\nThere has been an unrecoverable error.\nExiting now")
+        self.quit()
 
-def step(increament):
-    progress_bar['value']+=increament
+    def EmptySource_box(self,npz_path):
+        MsgBox = messagebox.askquestion (title=f"Would you like to add some .npz files?",message=f"You don\'t have any npz files at the location:\n {npz_path}.\n Would you like to add some .npz files?",icon = 'warning')
+        if MsgBox == 'yes':
+            self.open_file_dialog()
+        else:
+            messagebox.showerror(title='Exit', message=f"There are no npz files in {npz_path} directory.\nExiting now")
+            self.quit()
 
-def empty_progress():
-    """Set the progress bar to empty """
-    progress_bar['value']=0
+    def Invalid_npz_box(self,filename):
+            messagebox.showerror(title='Exit', message=f"{filename} was not a valid npz file and was skipped.")
 
-#                                                   DIALOG BOXES
-#-----------------------------------------------------------------------------------------------------------------------
-def Error_box(msg):
-    messagebox.showerror(title='ERROR', message=f"{msg}\nThere has been an unrecoverable error.\nExiting now")
-    root.quit()
+    def Success_box(self,filename_json):
+            messagebox.showinfo(title='Success', message=f"{filename_json} was generated",icon='info')
+    #                                                   End of DIALOG BOXES
+    #-----------------------------------------------------------------------------------------------------------------------
 
-def EmptySource_box(npz_path):
-    MsgBox = messagebox.askquestion (title=f"Would you like to add some .npz files?",message=f"You don\'t have any npz files at the location:\n {npz_path}.\n Would you like to add some .npz files?",icon = 'warning')
-    if MsgBox == 'yes':
-        open_file_dialog()
-    else:
-        messagebox.showerror(title='Exit', message=f"There are no npz files in {npz_path} directory.\nExiting now")
-        root.quit()
-
-def Invalid_npz_box(filename):
-        messagebox.showerror(title='Exit', message=f"{filename} was not a valid npz file and was skipped.")
-
-def Success_box(filename_json):
-        messagebox.showinfo(title='Success', message=f"{filename_json} was generated",icon='info')
-
-#                                                   End of DIALOG BOXES
-#-----------------------------------------------------------------------------------------------------------------------
+    def __init__(self, *args, **kwargs):
+        tk.Tk.__init__(self,className="Npz to JSON converter")
+        #make sure the destination folder exists to store the resulting JSON file
+        self.wait_visibility()
+        verify_destination_exists()
+        #create the main app's gui
+        self.build_main_app()
+        #make the subframes within the main app
+        self.__create_frames()
 
 
+        #Frame to hold the "Choose a Folder" button and the corresponding labels
+        #-----------------------------------------------------------------
+        self.folder_frame=tk.Frame(self,height = 75,width = 180,pady=10,padx=10,background="white")
+        self.folder_frame.pack(side='left',padx=10,pady=10)
+
+        self.path_label=tk.Label(self.folder_frame, text="")
+        self.path_label.config( foreground= "white",background=MainApp.background_color)
+        self.path_label.grid(row=1,column=0)
+
+        #path_label instrctions for path to .npz
+        self.label_folder_instr=tk.Label(self.folder_frame,text="Directory containing .npz files:")
+        self.label_folder_instr.config( foreground= "white",background=MainApp.background_color)
+        self.label_folder_instr.grid(row=0,column=0)
+
+        #Button to open a folder
+        self.Open_Folder_button = tk.Button(self.folder_frame, text="Choose Dir", command= self.open_file_dialog,background=MainApp.button_purple,fg="white")
+        self.Open_Folder_button.grid(row=2,column=0,pady=10,padx=5)
+        #-------------------------------------------------------------------
+
+        #Create frame to hold scrolling list and buttons to change list
+        self.list_holder=tk.Frame(self,width=190,height = 210,background="white",padx=7,pady=7)
+        self.list_holder.pack(side='right',pady=10,padx=5)
+
+
+        #Create a frame to hold the list
+        self.list_frame=tk.Frame(self.list_holder,height = 600,width = 300,pady=10)
+        self.xlist_scroll_bar=tk.Scrollbar(self.list_frame, orient='horizontal')
+        self.ylist_scroll_bar=tk.Scrollbar(self.list_frame, orient='vertical')
+
+
+        #Create the listbox to hold the files in the directory to read .npz files from
+        self.npz_listbox=tk.Listbox(self.list_frame,width=50,yscrollcommand=self.ylist_scroll_bar.set,xscrollcommand=self.xlist_scroll_bar.set,bg=MainApp.background_color,fg="white",selectbackground="#EA7AF4",highlightbackground="#EA7AF4",highlightcolor="#EA7AF4")
+
+        #Configure the scrollbar to scroll within the list vertically and horizontally
+        self.ylist_scroll_bar.config(command=self.npz_listbox.yview)
+        self.xlist_scroll_bar.config(command=self.npz_listbox.xview)
+        #1. Pack the scrollbar within the listframe
+        self.xlist_scroll_bar.pack(side='bottom',fill='x')
+        #2. Pack the frame 
+        self.list_frame.pack(side='right',padx=10)
+        #3.Place the list within the frame
+        self.npz_listbox.pack(side='left')
+        #4.Place the vertical scrollbar after the horizontal one
+        self.ylist_scroll_bar.pack(side='right',fill='y')
+
+        self.button_result = tk.Button( text="Open JSON", command=open_result,background=MainApp.button_purple,fg="white")
+        self.button_result.pack(side='bottom',pady=10)
+
+        self.button_run = tk.Button(text="Run", command=self.run_code,background=MainApp.button_purple,fg="white")
+        self.button_run.pack(side='bottom')
+
+    def build_main_app(self):
+        window_width = 910
+        window_height = 480
+        # get the screen dimension
+        screen_width =  self.winfo_screenwidth()
+        screen_height = self.winfo_screenheight()
+        # find the center point
+        center_x = int(screen_width/2 - window_width / 2)
+        center_y = int(screen_height/2 - window_height / 2)
+        # set the position of the window to the center of the screen
+        self.geometry(f'{window_width}x{window_height}+{center_x}+{center_y}')
+        self.minsize(window_width,window_height)
+        self['background']=MainApp.background_color
+        self.attributes('-alpha',0.95)          #makes the GUI transparent
+
+    def __create_frames(self):
+        self.instructionframe=InstructionFrame(self)
+        self.instructionframe.pack(side='top')
+
+    def open_result(self):
+        verify_destination_exists()
+        if os.name != 'posix':
+            os.startfile(pathlib.Path.cwd().joinpath('destination_files'), 'open')
+        else:
+            os.system('xdg-open '+os.getcwd()+os.sep+'destination_files')
+
+    def alert_JSON_write(self,write_status,destination_path):
+        if write_status:
+            logger.debug("\nSuccessful JSON CREATION\n")
+        else:
+            logger.debug("\nUnsuccessful JSON CREATION\n")
+
+    def read_files(self,source_path,npz_list,destination_path):
+        successful_write=False
+        if npz_list == []:
+            logger.exception("Empty listbox provided")
+            self.EmptySource_box(source_path)
+        try:
+            with open(destination_path,'a') as outfile:
+                for entry in npz_list:
+                    npz_file_path=source_path.joinpath(entry)
+                    print(npz_file_path)
+                    filename,file_extension= os.path.splitext(npz_file_path.name)
+                    print(filename,file_extension)
+                    obj=JSON_npz(npz_file_path, npz_file_path.name);
+                    try:
+                        obj.check_file()                         #if its a valid npz file then read the file
+                        obj.get_user_ID()
+                        try:
+                            mongo_dict=obj.read_npz()
+                            try:
+                                json_data=obj.create_json(mongo_dict)
+                                outfile.write(json_data)                #write the json data to the json file
+                                outfile.write("\n")                     #put a new line character after each json write
+                                successful_write=True
+                                self.alert_JSON_write(True,destination_path)
+                            except UltimateException as strong_error:
+                                logger.exception(strong_error)
+                                self.Error_box("ERROR: Cannot create a JSON file exiting now.")
+                        except NPZCorruptException as err:
+                            logger.exception(err)
+                            self.Invalid_npz_box(filename)
+                    except IncorrectFileTypeException as npz_file_error:
+                        logger.exception(npz_file_error)
+                        self.Invalid_npz_box(filename)
+        except IOError as file_read_err:
+            logger.error(file_read_err)
+            self.Error_box("ERROR cannot read any files from {source_path}}.")
+        #At the end check if at least one .npz file was converted to JSON successfully.
+        if successful_write:
+            self.Success_box(destination_path)
+        if not successful_write:
+            self.alert_JSON_write(False,destination_path)
+
+    def update_path_label(self,new_path):
+        self.path_label.config( text=f"{new_path}")
+
+    def delete_item_list(self):
+        self.npz_listbox.delete('anchor')
+
+    def deleteAll_listbox(self):
+        self.npz_listbox.delete(0,'end')
+
+    def create_file_list(self,path_npz):
+        #Function to convert all the items in the path to a list containing only .npz files
+        #OS MAY HAVE ISSUES WITH LINUX AND MAC
+        if os.path.exists(path_npz):                #ensure the path exists before attempting to access the directory
+            files_list=os.listdir(path_npz)
+            if files_list != []:                    #Ensure it is not an empty directory
+                npz_list = [file for file in files_list if file.lower().endswith('.npz') and os.path.isfile(os.path.join(path_npz, file))]
+                print(npz_list)
+                return npz_list 
+            else:
+                print("empty list")
+                self.EmptySource_box(path_npz)
+                return []
+        else:
+            print("path does not exist")
+            self.Error_box(msg=f"ERROR\nThe folder {path_npz} does not exist.\n")
+            return []
+
+    def open_file_dialog(self):
+        path_npz=filedialog.askdirectory(mustexist=True,initialdir= '/',title='Please select a directory')
+        print(path_npz)
+        self.update_path_label(path_npz)
+
+        #Update the list box
+        files_list=self.create_file_list(path_npz)
+        #DELETE THE FOLLOWING CODE
+        # if files_list == []:
+        #     print("No valid npz files")
+        #     return
+            #throw exception for no valid npz files
+        #catch exception here and trigger message box
+        #END OF CODE TO DELETE
+
+        #delete everything from listbox first to ensure clean insert
+        self.deleteAll_listbox()
+        #insert into listbox
+        for item in files_list:
+            self.npz_listbox.insert('end',item)
+
+    def read_npz_listbox(self):
+        list_size=self.npz_listbox.size()
+        npztuple =self.npz_listbox.get(0,list_size-1)
+        npzlist=list(npztuple)
+        return npzlist
+
+    def run_code(self):
+        verify_destination_exists()
+        destination_path=create_destination_file()
+        path_npz_str = self.path_label.cget("text")                      #receieves the path where the files are located.
+        path_npz=pathlib.Path(str(path_npz_str))
+        npz_list=self.read_npz_listbox()                                 #gets the list of npz files from the listbox.
+        self.read_files(path_npz,npz_list,destination_path)
+        delete_empty_file(destination_path)
 #
 #                                                HELPER FUNCTIONS FOR READING NPZ FILES
 #-----------------------------------------------------------------------------------------------------------------------
 
-def count_files(file_path):
-    if os.path.isdir(file_path):
-        num_files=len([name for name in os.listdir(file_path) if  os.path.isfile(file_path.joinpath(name))])
-        if num_files <= 0:
-            return 0
-        else:
-            return num_files
 
-def verify_destination_exists():
-    dest_exist=0
-    for entry in os.scandir(Path.cwd()):                                         #check for the source or destination folders
-            if entry.is_dir() and entry.name == r"destination_files":
-                dest_exist=1
-                break                       #exit the loop early because we don't care about the rest
-    # If either the destination_files does not exist create it
-    if not dest_exist :
-                logger.debug("\n The directory destination_files is missing and will be created.")
-                os.mkdir("destination_files")
+if __name__ == "__main__":
+    # logger = logging.getLogger(__name__)
+    # logger.setLevel(logging.INFO)
+    # formatter = logging.Formatter('%(levelname)s:%(name)s:%(message)s')
+    # log_file=make_log_file_path()
 
-def create_destination_file():
-    timestampStr = datetime.now().strftime("%d-%b-%Y_%H_%M_%S")
-    dest_file="npz_data_"+timestampStr+".json"
-    result_path = Path.cwd().joinpath('destination_files')
-    destination_path=result_path.joinpath(dest_file)
-    return destination_path
+    # create_filehandler_logger(log_file)
 
-def delete_empty_json_result(file_path):
-    """delete_empty_json_result: Checks if json file generated is empty and if it is then it is deleted"""
-    if os.path.exists(file_path) and os.stat(file_path).st_size == 0:
-        logger.debug("Empty file found. Deleting now.")
-        os.remove(file_path)
+    # file_handler = logging.FileHandler(log_file)
+    # file_handler.setFormatter(formatter)
+    # logger.addHandler(file_handler)
 
-def read_files(source_path,npz_list,destination_path,increament):
-    successful_write=0
-    if npz_list == []:
-        logger.exception("Empty listbox provided")
-        EmptySource_box(source_path)
-        return
-    try:
-        with open(destination_path,'a') as outfile:
-            for entry in npz_list:
-                npz_file_path=source_path.joinpath(entry)
-                print(npz_file_path)
-                filename,file_extension= os.path.splitext(npz_file_path.name)
-                print(filename,file_extension)
-                obj=JSON_npz(npz_file_path, npz_file_path.name);
-                try:
-                    # step(increament)
-                    obj.check_file()                         #if its a valid npz file then read the file
-                    obj.get_user_ID()
-                    try:
-                        mongo_dict=obj.read_npz()
-                        try:
-                            json_data=obj.create_json(mongo_dict)
-                            outfile.write(json_data)                #write the json data to the json file
-                            outfile.write("\n")                     #put a new line character after each json write
-                            successful_write=1
-                        except UltimateException as strong_error:
-                            logger.exception(strong_error)
-                            Error_box("ERROR: Cannot create a JSON file exiting now.")
-                    except NPZCorruptException as err:
-                        logger.exception(err)
-                        Invalid_npz_box(filename)
-                except IncorrectFileTypeException as npz_file_error:
-                    logger.exception(npz_file_error)
-                    Invalid_npz_box(filename)
-    except IOError as file_read_err:
-        logger.error(file_read_err)
-        Error_box("ERROR cannot read any files from {source_path}}.")
-    # step(increament)
-    if successful_write:
-        logger.debug("\nSuccessful JSON CREATION\n")
-        Success_box(destination_path)
-    else:
-        logger.debug("\nUnsuccessful JSON CREATION\n")
-
-def startup():
-    # verify_destination_exists()                                  #On startup verify the source and destination files exist
-    empty_progress()
-    source_path=pathlib.Path.cwd().joinpath("source_files")     #Path to source_files (where the npz files are read from)
-    num_files=count_files(source_path)                          #count the number of files in source_files to be used for the progress bar
-    increament=progress_bar_increament(num_files)               #determines how much progress bar should fill with each npz file read
-    return increament
-
-def delete_item_list():
-    npz_listbox.delete('anchor')
-
-def deleteAll_listbox():
-    npz_listbox.delete(0,'end')
-
-def create_file_list(path_npz):
-    #Function to convert all the items in the path to a list
-    #and checks for .npz files
-    #OS MAY HAVE ISSUES WITH LINUX AND MAC
-    if os.path.exists(path_npz):                #ensure the path exists before attempting to access the directory
-        files_list=os.listdir(path_npz)
-        if files_list != []:                    #Ensure it is not an empty directory
-            npz_list = [file for file in files_list if file.lower().endswith('.npz') and os.path.isfile(os.path.join(path_npz, file))]
-            print(npz_list)
-            return npz_list 
-        else:
-            print("empty list")
-            #throw empty list exception
-            return []
-    else:
-        print("path does not exist")
-        #throw invalid npz path  exception
-        return []
-
-def open_file_dialog():
-    path_npz=filedialog.askdirectory(mustexist=True,initialdir= '/',title='Please select a directory')
-    print(path_npz)
-    text.set(f"{path_npz}")
-
-    #Update the list box
-    files_list=create_file_list(path_npz)
-    if files_list == []:
-        print("No valid npz files")
-        return
-        #throw exception for no valid npz files
-    #catch exception here and trigger message box
-
-    #delete everything from listbox first to ensure clean insert
-    deleteAll_listbox()
-    #insert into listbox
-    for item in files_list:
-        npz_listbox.insert('end',item)
-
-def read_npz_listbox():
-    list_size=npz_listbox.size()
-    npztuple =npz_listbox.get(0,list_size-1)
-    npzlist=list(npztuple)
-    return npzlist
-
-
-#                                                   END OF HELPER FUNCTIONS
-#-----------------------------------------------------------------------------------------------------------------------
-
-#Instruction frame to hold the title and the instructions
-#-----------------------------------------------------------------
-instruction_frame=Frame(root,background=background_color)
-label_title = Label(instruction_frame, text="\nNPZ to JSON converter\n")
-label_title.config( foreground= "white",background=background_color)
-label_title.grid(row=0,column=2,pady=5)
-
-label_instructions = Label(instruction_frame, text="Instructions:\n1. Select the folder where the .npz files are located by using the \"Select npz Folder\" button.\n2. Click the \"Convert\" button to convert the .npx files to .json.\n3. Click \"Open Result\" to see your resulting json file. ")
-label_instructions.config( foreground= "white",background=background_color)
-label_instructions.grid(row=0,column=2,pady=5)
-
-instruction_frame.pack(side='top')
-#-------------------------------------------------------------
-
-#Frame to hold the "Choose a Folder" button and the corresponding labels
-#-----------------------------------------------------------------
-folder_frame=Frame(root,height = 75,width = 180,pady=10,padx=10,background="white")
-folder_frame.pack(side='left',padx=10,pady=10)
-
-#Making a label to hold the path where the .npz files are 
-#global StringVar method of changing a label
-text = StringVar()
-text.set('')                        #this allows  the text within the label to change
-path_label=Label(folder_frame, textvariable=text)
-path_label.config( foreground= "white",background=background_color)
-path_label.grid(row=1,column=0)
-
-#path_label instrctions for path to .npz
-label_folder_instr=Label(folder_frame,text="Directory containing .npz files:")
-label_folder_instr.config( foreground= "white",background=background_color)
-label_folder_instr.grid(row=0,column=0)
-
-#Button to open a folder
-Open_Folder_button = Button(folder_frame, text="Choose Dir", command= open_file_dialog,background=button_purple,fg="white")
-Open_Folder_button.grid(row=2,column=0,pady=10,padx=5)
-#-------------------------------------------------------------------
-
-#Create frame to hold scrolling list and buttons to change list
-list_holder=Frame(root,width=190,height = 210,background="white",padx=7,pady=7)
-list_holder.pack(side='right',pady=10,padx=5)
-
-
-#Create a frame to hold the list
-list_frame=Frame(list_holder,height = 600,width = 300,pady=10)
-xlist_scroll_bar=Scrollbar(list_frame, orient='horizontal')
-ylist_scroll_bar=Scrollbar(list_frame, orient='vertical')
-
-
-#Create the listbox to hold the files in the directory to read .npz files from
-npz_listbox=Listbox(list_frame,width=50,yscrollcommand=ylist_scroll_bar.set,xscrollcommand=xlist_scroll_bar.set,bg=background_color,fg="white",selectbackground="#EA7AF4",highlightbackground="#EA7AF4",highlightcolor="#EA7AF4")
-
-#Configure the scrollbar to scroll within the list vertically and horizontally
-ylist_scroll_bar.config(command=npz_listbox.yview)
-xlist_scroll_bar.config(command=npz_listbox.xview)
-#1. Pack the scrollbar within the listframe
-xlist_scroll_bar.pack(side='bottom',fill='x')
-#2. Pack the frame 
-list_frame.pack(side='right',padx=10)
-#3.Place the list within the frame
-npz_listbox.pack(side='left')
-#4.Place the vertical scrollbar after the horizontal one
-ylist_scroll_bar.pack(side='right',fill='y')
-
-delete_all_button=Button(list_holder,text="Clear All",command=deleteAll_listbox,background=button_purple,fg="white")
-delete_all_button.pack(side='bottom',pady=50)
-
-delete_button=Button(list_holder,text="Delete File",command=delete_item_list,background=button_purple,fg="white")
-delete_button.pack(side='bottom',pady=30)
-
-#---------------------------------------------------------------------------
-
-def open_result():
-    empty_progress()
-    verify_destination_exists()
-    if os.name != 'posix':
-        os.startfile(Path.cwd().joinpath('destination_files'), 'open')
-    else:
-        os.system('xdg-open '+os.getcwd()+os.sep+'destination_files')
-
-button_result = Button(root, text="Open JSON", command=open_result,background=button_purple,fg="white")
-button_result.pack(side='bottom',pady=10)
-
-def progress_bar_increament(num_files):
-    try:
-        if num_files==0:
-            return 100                          #There are no files to count so the increament is 100
-        return 100/num_files
-    except ZeroDivisionError as err:
-        logger.error(err)
-        Error_box("There was an error loading the logging files due to no files in source_files being provided. Please add files to the source_files directory.")
-
-
-def open_source():
-    empty_progress()
-    verify_destination_exists()
-    if os.name != 'posix':
-        os.startfile( Path.cwd().joinpath('source_files'), 'open')
-    else:
-        os.system('xdg-open '+os.getcwd()+os.sep+'source_files')
-
-def run_code():
-    increament=startup()
-    destination_path=create_destination_file()
-    path_npz_str = path_label.cget("text")                          #receieves the path where the files are located.
-    print(path_npz_str)
-    print(type(path_npz_str))
-    path_npz=pathlib.Path(str(path_npz_str))
-    print(path_npz)
-    print(type(path_npz))
-    npz_list=read_npz_listbox()                                 #gets the list of npz files from the listbox.
-    read_files(path_npz,npz_list,destination_path,increament)
-    delete_empty_json_result(destination_path)
-
-button_run = Button(root, text="Run", command=run_code,background=button_purple,fg="white")
-button_run.pack(side=BOTTOM)
-
-
-
-root.wait_visibility()                                #waits until the window is visible
-startup()                                             #Calculate progressbar increament, checks if source_files and destination_files exist
-root.mainloop()
+    #Run the actual App
+    app=MainApp()
+    app.mainloop()
