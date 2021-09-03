@@ -30,10 +30,34 @@ class MainApp(tk.Tk):
     #                                                   DIALOG BOXES
     #-----------------------------------------------------------------------------------------------------------------------
     def Error_box(self,msg):
+        """" A system error dialog box that informs the user an recoverable error has occured and the prorgram will quit. 
+        Args:
+            self: An instance of the MainApp class
+            msg: A custom msg provided by the program that typically specifies what kind of error occured.
+
+        Returns:
+            None
+        Raises:
+            None
+        """
         messagebox.showerror(title='ERROR', message=f"{msg}\nThere has been an unrecoverable error.\nExiting now")
         self.quit()
 
     def EmptySource_box(self,npz_path):
+        """" A system error dialog box that asks the user to choose a directory to open .npz files with or quits the program
+        
+            If the user selects yes and chooses to select a directory to read .npz files from the open_file_dialog()
+            will be executed. If the user selects option no then the program exits.
+
+        Args:
+            self: An instance of the MainApp class
+            npz_path: a pathlib.path to the current directory where .npz files would be read from
+
+        Returns:
+            Exits the program if the user choose not to select a directory with .npz files
+        Raises:
+            None
+        """
         MsgBox = messagebox.askquestion (title=f"Would you like to add some .npz files?",message=f"You don\'t have any npz files at the location:\n {npz_path}.\n Would you like to add some .npz files?",icon = 'warning')
         if MsgBox == 'yes':
             self.open_file_dialog()
@@ -42,10 +66,32 @@ class MainApp(tk.Tk):
             self.quit()
 
     def Invalid_npz_box(self,filename):
-            messagebox.showerror(title='Exit', message=f"{filename} was not a valid npz file and was skipped.")
+        """" A system error dialog box that informs the user an error occured while attempting to read the filename
+        
+        Args:
+            self: An instance of the MainApp class.
+            filename: A string specifying the file name that could not be processed.
 
-    def Success_box(self,filename_json):
-            messagebox.showinfo(title='Success', message=f"{filename_json} was generated",icon='info')
+        Returns:
+            None
+        Raises:
+            None
+        """
+        messagebox.showerror(title='Exit', message=f"{filename} was not a valid npz file and was skipped.")
+
+    def Success_box(self,filename):
+        """" A system info dialog box that informs the user a json file was successfully created.
+        
+        Args:
+            self: An instance of the MainApp class.
+            filename: A string specifying the file name that was generated.
+
+        Returns:
+            None
+        Raises:
+            None
+        """
+        messagebox.showinfo(title='Success', message=f"{filename} was generated",icon='info')
     #                                                   End of DIALOG BOXES
     #-----------------------------------------------------------------------------------------------------------------------
 
@@ -114,6 +160,20 @@ class MainApp(tk.Tk):
         self.button_run.pack(side='bottom')
 
     def build_main_app(self):
+        """"Builds the main frame of the app.
+
+        Builds the main frame of the app by specifiying the dimensions of the app, the background colors, the transparency, and
+        where on the user's screen it will display.
+
+        Note: This may cause errors on user's who have multiple displays.
+
+        Args:
+             self: An instance of the MainApp class.
+        Returns:
+           None.
+        Raises:
+            None.
+        """
         window_width = 910
         window_height = 480
         # get the screen dimension
@@ -126,19 +186,63 @@ class MainApp(tk.Tk):
         self.geometry(f'{window_width}x{window_height}+{center_x}+{center_y}')
         self.minsize(window_width,window_height)
         self['background']=MainApp.background_color
-        self.attributes('-alpha',0.95)          #makes the GUI transparent
+        self.attributes('-alpha',0.97)          #makes the GUI transparent
 
     def __create_frames(self):
+        """"Creates independent sub frames to be nested within the main frame.
+
+        Creates the instrcution frame and packs it into the main frame.
+
+        Args:
+             self: An instance of the MainApp class.
+        Returns:
+           None.
+        Raises:
+            None.
+        """
         self.instructionframe=InstructionFrame(self)
         self.instructionframe.pack(side='top')
 
     def alert_JSON_write(self,write_status,destination_path):
+        """"Writes a message to the log file depending on whether a successful write to the json file occured or not.
+
+       If write status is true it writes success message to the log file if at least one .npz file was written to the JSON file
+       specified by the destination_path.
+       If write status is false it means the .npz file was not written to the JSON file specified by the destination_path.
+
+        Args:
+             self: An instance of the MainApp class.
+             write_status: Boolean. True=Successful Write   False=Failed Write
+             destination_path: pathlib.path location of the file that was written to. 
+        Returns:
+           None.
+        Raises:
+            None.
+        """
         if write_status:
-            self.logger.debug("\nSuccessful JSON CREATION\n")
+            self.logger.debug(f"\nSuccessful JSON CREATION\n The file was written to {destination_path}.\n")
         else:
-            self.logger.debug("\nUnsuccessful JSON CREATION\n")
+            self.logger.debug(f"\nUnsuccessful JSON CREATION\nThe file was written to {destination_path}.\n")
 
     def read_files(self,source_path,npz_list,destination_path):
+        """"Reads all the files in npz_list that are in the directory specified by source_path to the directory in destination_path
+
+       Reads the files in the npz_list and appends each filename in npz_list with the source_path to create an absolute path to the .npz file.
+       It then extracts all the relevant data from the .npz files and writes it the location specifed by destination_path.
+
+        Args:
+             self: An instance of the MainApp class.
+             source_path: pathlib.path location of the directory containing .npz files to be processed
+             npz_list: A list of .npz files that will be processed
+             destination_path: pathlib.path location of the file that was written to. 
+        Returns:
+           None.
+        Raises:
+            UltimateException: The JSON file could not be created due to an error.
+            NPZCorruptException: The .npz file could not be converted to JSON.
+            IncorrectFileTypeException: A non .npz file was read causing an error
+            IOError: An error occured while accessing the .npz file or json file.
+        """
         successful_write=False
         if npz_list == []:
             self.logger.exception("Empty listbox provided")
@@ -174,6 +278,7 @@ class MainApp(tk.Tk):
         except IOError as file_read_err:
             self.logger.error(file_read_err)
             self.Error_box("ERROR cannot read any files from {source_path}}.")
+
         #At the end check if at least one .npz file was converted to JSON successfully.
         if successful_write:
             self.Success_box(destination_path)
@@ -184,10 +289,29 @@ class MainApp(tk.Tk):
         self.path_label.config( text=f"{new_path}")
 
     def delete_item_list(self):
+        """"Deletes the selected item from the listbox"""
         self.npz_listbox.delete('anchor')
 
     def deleteAll_listbox(self):
+        """"Deletes all items from the listbox"""
         self.npz_listbox.delete(0,'end')
+
+    def read_npz_listbox(self):
+        """"Reads all items in the listbox.
+
+       Gets the size of the listbox then reads all the items from the listbox and returns them as a list.
+
+        Args:
+             self: An instance of the MainApp class.
+        Returns:
+           A list containing all the files in the listbox.
+        Raises:
+           None.
+        """       
+        list_size=self.npz_listbox.size()
+        npztuple =self.npz_listbox.get(0,list_size-1)
+        npzlist=list(npztuple)
+        return npzlist
 
     def create_file_list(self,path_npz):
         #Function to convert all the items in the path to a list containing only .npz files
@@ -208,8 +332,20 @@ class MainApp(tk.Tk):
             return []
 
     def open_file_dialog(self):
+        """"Prompts the user to specify a directory where the .npz files are located. Then saves the absolute path to a label and inserts all
+        the .npz files into the listbox.
+
+       Prompts the user to specify a directory where the .npz files are located using a system file box. Then saves the absolute path to a label.
+       It then clears the listbox to ensure a clean insert and inserts all the .npz files into the listbox.
+
+        Args:
+             self: An instance of the MainApp class.
+        Returns:
+          None.
+        Raises:
+           None.
+        """    
         path_npz=filedialog.askdirectory(mustexist=True,initialdir= '/',title='Please select a directory')
-        print(path_npz)
         self.update_path_label(path_npz)
 
         #Update the list box
@@ -217,17 +353,25 @@ class MainApp(tk.Tk):
 
         #delete everything from listbox first to ensure clean insert
         self.deleteAll_listbox()
-        #insert into listbox
+        #insert all the files into the listbox
         for item in files_list:
             self.npz_listbox.insert('end',item)
 
-    def read_npz_listbox(self):
-        list_size=self.npz_listbox.size()
-        npztuple =self.npz_listbox.get(0,list_size-1)
-        npzlist=list(npztuple)
-        return npzlist
-
     def run_code(self):
+        """"Creates a json file from the .npz files in the listbox.
+       
+       Runs all the necessary functions to create a json file. It starts by verifiying the destination files directory exists in the cwd.
+       It then gets the absolute path to the directory containing the .npz files. It gets the list of the .npz file name from the listbox.
+       It then reads all the .npz files and creates a json file. It then checks if the JSON file generated is empty and if it is then it deletes
+       it.
+
+        Args:
+             self: An instance of the MainApp class.
+        Returns:
+          None.
+        Raises:
+           None.
+        """  
         FileManipulators.verify_destination_exists(self.logger)
         destination_path=FileManipulators.create_destination_file()
         path_npz_str = self.path_label.cget("text")                      #receieves the path where the files are located.
@@ -235,9 +379,7 @@ class MainApp(tk.Tk):
         npz_list=self.read_npz_listbox()                                 #gets the list of npz files from the listbox.
         self.read_files(path_npz,npz_list,destination_path)
         FileManipulators.delete_empty_file(destination_path,self.logger)
-#
-#                                                HELPER FUNCTIONS FOR READING NPZ FILES
-#-----------------------------------------------------------------------------------------------------------------------
+
 
 
 if __name__ == "__main__":
