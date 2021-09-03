@@ -12,22 +12,46 @@ import os
 #                                               LOG CREATION FUNCTIONS
 #-----------------------------------------------------------------------------------------------------------------------
 def make_log_file_path():
-      timestampStr = datetime.now().strftime("%d-%b-%Y_%H_%M_%S")
-      file_name="log_"+timestampStr+".log"
-      dir_path = Path.cwd().joinpath('log_files')
-      print(f"\nLog files location: {dir_path}")
-      if not os.path.exists(dir_path):
-          print(f"\nLocation does not exist: {dir_path}.\n Creating it now. \n")
-          os.mkdir(dir_path)
-      log_path=dir_path.joinpath(file_name)
-      print(f"\nLog: {log_path} has been created. \n")
-      return log_path
+    """"Creates the absoltute path where the log file will be generated
+          
+        Uses the current date and time to generate a unique log file.
+
+    Args:
+        None.
+    Returns:
+        A pathlib.Path containing the absolute path to the directory called log_files
+        For example:
+            For a windows machine:
+                C:\programs\npz_to_json_converter\log_files\log_03-Sep-2021_07_47_40.log
+    Raises:
+        None.
+        """
+    timestampStr = datetime.now().strftime("%d-%b-%Y_%H_%M_%S")
+    file_name="log_"+timestampStr+".log"
+    dir_path = Path.cwd().joinpath('log_files')
+    print(f"\nLog files location: {dir_path}")
+    if not os.path.exists(dir_path):
+        print(f"\nLocation does not exist: {dir_path}.\n Creating it now. \n")
+        os.mkdir(dir_path)
+    log_path=dir_path.joinpath(file_name)
+    print(f"\nLog: {log_path} has been created. \n")
+    return log_path
 
 def create_filehandler_logger(file_log_name):
-      file_handler = logging.FileHandler(file_log_name)
-      file_handler.setFormatter(formatter)
-      logger.addHandler(file_handler)
+    """"Creates the file handler for the logger using the filename
+          
+    Args:
+        None.
+    Returns:
+        None.
+    Raises:
+        None.
+        """
+    file_handler = logging.FileHandler(file_log_name)
+    file_handler.setFormatter(formatter)
+    logger.addHandler(file_handler)
 
+#Creating the logger here
 logger = logging.getLogger(__name__)
 logger.setLevel(logging.INFO)
 formatter = logging.Formatter('%(levelname)s:%(name)s:%(message)s')
@@ -51,8 +75,8 @@ class JSON_npz:
         Args:
             self: instance variable
 
-        Raises IncorrectFileTypeException
-        Raises exception when the file is not of type NPZ
+        Raises:
+             IncorrectFileTypeException: Raises exception when the file is not of type NPZ
      """
      filename,file_extension= os.path.splitext(self.file_name)
      if file_extension != ".npz":                                                            #if npz file does not exist throw an exception
@@ -84,7 +108,7 @@ class JSON_npz:
 
         Args:
             self: instance variable
-
+            
         Returns:
            If successful: returns a dictionary containing data from the npz file.
 
@@ -217,6 +241,16 @@ class JSON_npz:
      return info_for_mongo
 
     def create_json(self,mong_dict):
+        """"Creates a json file using the mongo dictionary provided by mongo_dict.
+
+        Args:
+           self: instance variable
+           mongo_dict: A dictionary created from the npz file.
+        Returns:
+           
+        Raises:
+            TypeError: Cannot serialize the dictionary into JSON
+            """
         try:
             mongo_json=json.dumps(mong_dict)
         except TypeError as err:

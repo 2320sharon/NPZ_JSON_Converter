@@ -1,9 +1,7 @@
 import tkinter as tk
 from NPZClass import *
-# from FileManipulators import *
 import FileManipulators
 from tkinter import filedialog, messagebox, ttk
-from numpy.lib.npyio import load
 
 class InstructionFrame(tk.Frame):
     def __init__(self,parent):
@@ -380,9 +378,8 @@ class MainApp(tk.Tk):
         self.read_files(path_npz,npz_list,destination_path)
         FileManipulators.delete_empty_file(destination_path,self.logger)
 
-
-
 if __name__ == "__main__":
+    #Creates a logger and the corresponding logfile.
     logger = logging.getLogger(__name__)
     logger.setLevel(logging.INFO)
     formatter = logging.Formatter('%(levelname)s:%(name)s:%(message)s')
@@ -394,6 +391,6 @@ if __name__ == "__main__":
     file_handler.setFormatter(formatter)
     logger.addHandler(file_handler)
 
-    #Run the actual App
+    #Runs App
     app=MainApp(logger)
     app.mainloop()
