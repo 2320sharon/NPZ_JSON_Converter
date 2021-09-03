@@ -5,23 +5,25 @@ from tkinter import filedialog, messagebox, ttk
 
 class InstructionFrame(tk.Frame):
     def __init__(self,parent):
-        super().__init__(parent,background=parent.background_color)
+        super().__init__(parent,background=parent.frame_color)
         self.__create_widgets(parent)
     
     def __create_widgets(self,parent):
         label_title =  tk.Label(self, text="\nNPZ to JSON converter\n")
-        label_title.config( foreground= "white",background='#10002b')
+        label_title.config( foreground= "white",background=parent.frame_color)
         label_title.grid(row=0,column=2,pady=5)
 
         label_instructions = tk.Label(self, text="Instructions:\n1. Select the folder where the .npz files are located by using the \"Select npz Folder\" button.\n2. Click the \"Convert\" button to convert the .npx files to .json.\n3. Click \"Open Result\" to see your resulting json file. ")
-        label_instructions.config( foreground= "white",background='#10002b')
+        label_instructions.config( foreground= "white",background=parent.frame_color)
         label_instructions.grid(row=0,column=2,pady=5)
         
 class MainApp(tk.Tk):
 
      #Defining App colors
     # ---------------------------------
-    background_color ='#10002b'
+    background_color ='#121212'
+    frame_color='#292929'
+    text_color='#6C6C6C'
     button_purple="#6200B3"
     #----------------------------------
 
@@ -108,16 +110,16 @@ class MainApp(tk.Tk):
 
         #Frame to hold the "Choose a Folder" button and the corresponding labels
         #-----------------------------------------------------------------
-        self.folder_frame=tk.Frame(self,height = 75,width = 180,pady=10,padx=10,background="white")
+        self.folder_frame=tk.Frame(self,height = 75,width = 180,pady=10,padx=10,background=MainApp.frame_color)
         self.folder_frame.pack(side='left',padx=10,pady=10)
 
         self.path_label=tk.Label(self.folder_frame, text="")
-        self.path_label.config( foreground= "white",background=MainApp.background_color)
+        self.path_label.config( foreground= "white",background=MainApp.frame_color)
         self.path_label.grid(row=1,column=0)
 
         #path_label instrctions for path to .npz
         self.label_folder_instr=tk.Label(self.folder_frame,text="Directory containing .npz files:")
-        self.label_folder_instr.config( foreground= "white",background=MainApp.background_color)
+        self.label_folder_instr.config( foreground= "white",background=MainApp.frame_color)
         self.label_folder_instr.grid(row=0,column=0)
 
         #Button to open a folder
@@ -126,7 +128,7 @@ class MainApp(tk.Tk):
         #-------------------------------------------------------------------
 
         #Create frame to hold scrolling list and buttons to change list
-        self.list_holder=tk.Frame(self,width=190,height = 210,background="white",padx=7,pady=7)
+        self.list_holder=tk.Frame(self,width=190,height = 210,background=MainApp.frame_color,padx=7,pady=7)
         self.list_holder.pack(side='right',pady=10,padx=5)
 
 
@@ -137,7 +139,7 @@ class MainApp(tk.Tk):
 
 
         #Create the listbox to hold the files in the directory to read .npz files from
-        self.npz_listbox=tk.Listbox(self.list_frame,width=50,yscrollcommand=self.ylist_scroll_bar.set,xscrollcommand=self.xlist_scroll_bar.set,bg=MainApp.background_color,fg="white",selectbackground="#EA7AF4",highlightbackground="#EA7AF4",highlightcolor="#EA7AF4")
+        self.npz_listbox=tk.Listbox(self.list_frame,width=50,yscrollcommand=self.ylist_scroll_bar.set,xscrollcommand=self.xlist_scroll_bar.set,bg=MainApp.background_color,fg="white",highlightbackground="#EA7AF4",selectbackground="#EA7AF4",activestyle=None)
 
         #Configure the scrollbar to scroll within the list vertically and horizontally
         self.ylist_scroll_bar.config(command=self.npz_listbox.yview)
