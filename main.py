@@ -139,7 +139,7 @@ class MainApp(tk.Tk):
 
 
         #Create the listbox to hold the files in the directory to read .npz files from
-        self.npz_listbox=tk.Listbox(self.list_frame,width=50,yscrollcommand=self.ylist_scroll_bar.set,xscrollcommand=self.xlist_scroll_bar.set,bg=MainApp.background_color,fg="white",highlightbackground="#EA7AF4",selectbackground="#EA7AF4",activestyle=None)
+        self.npz_listbox=tk.Listbox(self.list_frame,width=50,yscrollcommand=self.ylist_scroll_bar.set,xscrollcommand=self.xlist_scroll_bar.set,bg=MainApp.background_color,fg="white",highlightbackground="#EA7AF4",selectbackground="#EA7AF4",activestyle='none')
 
         #Configure the scrollbar to scroll within the list vertically and horizontally
         self.ylist_scroll_bar.config(command=self.npz_listbox.yview)
