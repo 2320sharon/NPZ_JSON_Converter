@@ -1,73 +1,9 @@
 import tkinter as tk
-from tkinter import Button, Label, filedialog, messagebox, ttk
-import os
+from NPZClass import *
+# from FileManipulators import *
+import FileManipulators
+from tkinter import filedialog, messagebox, ttk
 from numpy.lib.npyio import load
-import json
-from classes import *
-import pathlib 
-
-#if you want to pass variable to functions from buttons use button=(root,text="sample",command=Lambda: funcion(var))
-
-#                                   Helper Functions
-#------------------------------------------------------------------------------------------------------------------------
-def create_destination_file():
-    timestampStr = datetime.now().strftime("%d-%b-%Y_%H_%M_%S")
-    dest_file="npz_data_"+timestampStr+".json"
-    result_path = pathlib.Path.cwd().joinpath('destination_files')
-    destination_path=result_path.joinpath(dest_file)
-    return destination_path
-
-def delete_empty_file(file_path):
-    """delete_empty_file: Checks if json file generated is empty and if it is then it is deleted"""
-    if os.path.exists(file_path) and os.stat(file_path).st_size == 0:
-        logger.debug("Empty file found. Deleting now.")
-        os.remove(file_path)
-
-def check_folder_exists(path_name,foldername):
-    for entry in os.scandir(path_name):          
-        if entry.is_dir() and entry.name == f"{foldername}":
-                print("\nThis dir does exist\n")
-                return True
-    print("\nThis dir does NOT exist\n")
-    return False
-
-def verify_destination_exists():
-    if not check_folder_exists(Path.cwd(),"destination_files"):
-        logger.debug("\n The directory destination_files is missing and will be created.")
-        os.mkdir("destination_files")
-
-def open_result():
-    verify_destination_exists()
-    if os.name != 'posix':
-        os.startfile(pathlib.Path.cwd().joinpath('destination_files'), 'open')
-    else:
-        os.system('xdg-open '+os.getcwd()+os.sep+'destination_files')
-
-def open_source():
-    verify_destination_exists()
-    if os.name != 'posix':
-        os.startfile( pathlib.Path.cwd().joinpath('source_files'), 'open')
-    else:
-        os.system('xdg-open '+os.getcwd()+os.sep+'source_files')
-
-#                                   End Helper Functions
-#------------------------------------------------------------------------------------------------------------------------
-
-
-#                                                   Setting up the Log Files
-# -----------------------------------------------------------------------------------------------------------------------
-logger = logging.getLogger(__name__)
-logger.setLevel(logging.INFO)
-formatter = logging.Formatter('%(levelname)s:%(name)s:%(message)s')
-log_file=make_log_file_path()
-
-create_filehandler_logger(log_file)
-
-file_handler = logging.FileHandler(log_file)
-file_handler.setFormatter(formatter)
-logger.addHandler(file_handler)
-#                                                  End of setting up the Log Files
-# -----------------------------------------------------------------------------------------------------------------------
 
 class InstructionFrame(tk.Frame):
     def __init__(self,parent):
@@ -113,11 +49,13 @@ class MainApp(tk.Tk):
     #                                                   End of DIALOG BOXES
     #-----------------------------------------------------------------------------------------------------------------------
 
-    def __init__(self, *args, **kwargs):
+    def __init__(self, logger):
         tk.Tk.__init__(self,className="Npz to JSON converter")
+        self.logger=logger
+        self.logger.info("\nSuccessfully created base app\n")
         #make sure the destination folder exists to store the resulting JSON file
         self.wait_visibility()
-        verify_destination_exists()
+        FileManipulators.verify_destination_exists(self.logger)
         #create the main app's gui
         self.build_main_app()
         #make the subframes within the main app
@@ -169,7 +107,7 @@ class MainApp(tk.Tk):
         #4.Place the vertical scrollbar after the horizontal one
         self.ylist_scroll_bar.pack(side='right',fill='y')
 
-        self.button_result = tk.Button( text="Open JSON", command=open_result,background=MainApp.button_purple,fg="white")
+        self.button_result = tk.Button( text="Open JSON",command=lambda:FileManipulators.open_result(self.logger), background=MainApp.button_purple,fg="white")
         self.button_result.pack(side='bottom',pady=10)
 
         self.button_run = tk.Button(text="Run", command=self.run_code,background=MainApp.button_purple,fg="white")
@@ -194,23 +132,16 @@ class MainApp(tk.Tk):
         self.instructionframe=InstructionFrame(self)
         self.instructionframe.pack(side='top')
 
-    def open_result(self):
-        verify_destination_exists()
-        if os.name != 'posix':
-            os.startfile(pathlib.Path.cwd().joinpath('destination_files'), 'open')
-        else:
-            os.system('xdg-open '+os.getcwd()+os.sep+'destination_files')
-
     def alert_JSON_write(self,write_status,destination_path):
         if write_status:
-            logger.debug("\nSuccessful JSON CREATION\n")
+            self.logger.debug("\nSuccessful JSON CREATION\n")
         else:
-            logger.debug("\nUnsuccessful JSON CREATION\n")
+            self.logger.debug("\nUnsuccessful JSON CREATION\n")
 
     def read_files(self,source_path,npz_list,destination_path):
         successful_write=False
         if npz_list == []:
-            logger.exception("Empty listbox provided")
+            self.logger.exception("Empty listbox provided")
             self.EmptySource_box(source_path)
         try:
             with open(destination_path,'a') as outfile:
@@ -232,16 +163,16 @@ class MainApp(tk.Tk):
                                 successful_write=True
                                 self.alert_JSON_write(True,destination_path)
                             except UltimateException as strong_error:
-                                logger.exception(strong_error)
+                                self.logger.exception(strong_error)
                                 self.Error_box("ERROR: Cannot create a JSON file exiting now.")
                         except NPZCorruptException as err:
-                            logger.exception(err)
+                            self.logger.exception(err)
                             self.Invalid_npz_box(filename)
                     except IncorrectFileTypeException as npz_file_error:
-                        logger.exception(npz_file_error)
+                        self.logger.exception(npz_file_error)
                         self.Invalid_npz_box(filename)
         except IOError as file_read_err:
-            logger.error(file_read_err)
+            self.logger.error(file_read_err)
             self.Error_box("ERROR cannot read any files from {source_path}}.")
         #At the end check if at least one .npz file was converted to JSON successfully.
         if successful_write:
@@ -283,13 +214,6 @@ class MainApp(tk.Tk):
 
         #Update the list box
         files_list=self.create_file_list(path_npz)
-        #DELETE THE FOLLOWING CODE
-        # if files_list == []:
-        #     print("No valid npz files")
-        #     return
-            #throw exception for no valid npz files
-        #catch exception here and trigger message box
-        #END OF CODE TO DELETE
 
         #delete everything from listbox first to ensure clean insert
         self.deleteAll_listbox()
@@ -304,30 +228,30 @@ class MainApp(tk.Tk):
         return npzlist
 
     def run_code(self):
-        verify_destination_exists()
-        destination_path=create_destination_file()
+        FileManipulators.verify_destination_exists(self.logger)
+        destination_path=FileManipulators.create_destination_file()
         path_npz_str = self.path_label.cget("text")                      #receieves the path where the files are located.
         path_npz=pathlib.Path(str(path_npz_str))
         npz_list=self.read_npz_listbox()                                 #gets the list of npz files from the listbox.
         self.read_files(path_npz,npz_list,destination_path)
-        delete_empty_file(destination_path)
+        FileManipulators.delete_empty_file(destination_path,self.logger)
 #
 #                                                HELPER FUNCTIONS FOR READING NPZ FILES
 #-----------------------------------------------------------------------------------------------------------------------
 
 
 if __name__ == "__main__":
-    # logger = logging.getLogger(__name__)
-    # logger.setLevel(logging.INFO)
-    # formatter = logging.Formatter('%(levelname)s:%(name)s:%(message)s')
-    # log_file=make_log_file_path()
+    logger = logging.getLogger(__name__)
+    logger.setLevel(logging.INFO)
+    formatter = logging.Formatter('%(levelname)s:%(name)s:%(message)s')
+    log_file=make_log_file_path()
 
-    # create_filehandler_logger(log_file)
+    create_filehandler_logger(log_file)
 
-    # file_handler = logging.FileHandler(log_file)
-    # file_handler.setFormatter(formatter)
-    # logger.addHandler(file_handler)
+    file_handler = logging.FileHandler(log_file)
+    file_handler.setFormatter(formatter)
+    logger.addHandler(file_handler)
 
     #Run the actual App
-    app=MainApp()
+    app=MainApp(logger)
     app.mainloop()
