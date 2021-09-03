@@ -96,7 +96,7 @@ class MainApp(tk.Tk):
     #-----------------------------------------------------------------------------------------------------------------------
 
     def __init__(self, logger):
-        tk.Tk.__init__(self,className="Npz to JSON converter")
+        tk.Tk.__init__(self,className=" NPZ to JSON converter")
         self.logger=logger
         self.logger.info("\nSuccessfully created base app\n")
         #make sure the destination folder exists to store the resulting JSON file
