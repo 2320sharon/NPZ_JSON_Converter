@@ -13,7 +13,7 @@ class InstructionFrame(tk.Frame):
         label_title.config( foreground= "white",background=parent.frame_color)
         label_title.grid(row=0,column=2,pady=5)
 
-        label_instructions = tk.Label(self, text="Instructions:\n1. Select the folder where the .npz files are located by using the \"Select npz Folder\" button.\n2. Click the \"Convert\" button to convert the .npx files to .json.\n3. Click \"Open Result\" to see your resulting json file. ")
+        label_instructions = tk.Label(self, text="Instructions:\n1. Select the folder where the .npz files are located by using the \"Select npz Folder\" button.\n2. Click the \"Run\" button to convert the .npz files to .json.\n3. Click \"Open JSON\" to see your resulting json file. ")
         label_instructions.config( foreground= "white",background=parent.frame_color)
         label_instructions.grid(row=0,column=2,pady=5)
         
@@ -137,6 +137,12 @@ class MainApp(tk.Tk):
         self.xlist_scroll_bar=tk.Scrollbar(self.list_frame, orient='horizontal')
         self.ylist_scroll_bar=tk.Scrollbar(self.list_frame, orient='vertical')
 
+        #Create the buttons within the same frame holding the listbox
+        delete_button=tk.Button(self.list_holder,text="Delete File",command=self.delete_item_list,background=MainApp.button_purple,fg="white")
+        delete_button.grid(column=0,row = 0,pady=5,padx=10)
+
+        delete_all_button=tk.Button(self.list_holder,text="Clear All",command=self.deleteAll_listbox,background=MainApp.button_purple,fg="white")
+        delete_all_button.grid(column=0,row = 2,pady=5,padx=10)
 
         #Create the listbox to hold the files in the directory to read .npz files from
         self.npz_listbox=tk.Listbox(self.list_frame,width=50,yscrollcommand=self.ylist_scroll_bar.set,xscrollcommand=self.xlist_scroll_bar.set,bg=MainApp.background_color,fg="white",highlightbackground="#EA7AF4",selectbackground="#EA7AF4",activestyle='none')
@@ -147,7 +153,7 @@ class MainApp(tk.Tk):
         #1. Pack the scrollbar within the listframe
         self.xlist_scroll_bar.pack(side='bottom',fill='x')
         #2. Pack the frame 
-        self.list_frame.pack(side='right',padx=10)
+        self.list_frame.grid(column=2,row=1,padx=5,pady=5)
         #3.Place the list within the frame
         self.npz_listbox.pack(side='left')
         #4.Place the vertical scrollbar after the horizontal one
