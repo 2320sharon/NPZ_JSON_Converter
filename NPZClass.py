@@ -13,7 +13,7 @@ import os
 #-----------------------------------------------------------------------------------------------------------------------
 def make_log_file_path():
     """"Creates the absoltute path where the log file will be generated
-          
+
         Uses the current date and time to generate a unique log file.
 
     Args:
@@ -39,7 +39,7 @@ def make_log_file_path():
 
 def create_filehandler_logger(file_log_name):
     """"Creates the file handler for the logger using the filename
-          
+
     Args:
         None.
     Returns:
@@ -108,7 +108,7 @@ class JSON_npz:
 
         Args:
             self: instance variable
-            
+
         Returns:
            If successful: returns a dictionary containing data from the npz file.
 
@@ -138,58 +138,118 @@ class JSON_npz:
 
      #array of class names
      try:
-      classes_array = data['classes']
-      classes_array=classes_array.tolist()
-      num_classes = len(classes_array)
-
-      # classes as integers
-      classes_integer = np.arange(1,num_classes)
-      classes_integer=classes_integer.tolist()
-
-      #classes acyually present in the scene
-      #unique finds all the unique items in an array and returns an array containing those items and flattens it into 1d [1,2],[3,4] becomes [1,2,3,4]
-      classes_present_integer = np.unique(data['label'].flatten())
-      classes_present_integer=classes_present_integer.tolist()
-
-      #classes present as string
-      #uses the indexes from the classes_present_integer to generate a string for all the classes present in the image
-      classes_present_array = [data['classes'][k] for k in classes_present_integer]
-
-      #pen width
-      pen_width =  data['settings'][0]
-
-      #CRF_theta
-      CRF_theta =  data['settings'][1]
-
-      #CRF_mu
-      CRF_mu =  data['settings'][2]
-
-      #CRF_downsample_factor
-      CRF_downsample_factor =  data['settings'][3]
-
-      #Classifier_downsample_factor
-      Classifier_downsample_factor =  data['settings'][4]
-
-      #prob_of_unary_potential
-      prob_of_unary_potential =  data['settings'][5]
-      doodle_spatial_density = np.sum(data['doodles'].flatten()>0) / np.prod(np.shape(data['doodles']))
-
-      ##number of input image bands
-      num_image_bands = np.ndim(data['image'])
-
-      #name of image and label image that will be generated from the npz files
-      if self.user_ID == 'anon':
-          image_filename = str(self.file_path).split(os.sep)[-1]+'_image.jpg'.replace(self.file_name.split('.npz')[0].split('_')[-1], 'anon')
-          label_image_filename = str(self.file_path).split(os.sep)[-1]+'_label.png'.replace(self.file_name.split('.npz')[0].split('_')[-1], 'anon')
-          annotation_image_filename = str(self.file_path).split(os.sep)[-1]+'_annotation.png'.replace(self.file_name.split('.npz')[0].split('_')[-1], 'anon')
-      else:
-          image_filename = str(self.file_path).split(os.sep)[-1]+'_image.jpg'
-          label_image_filename =  str(self.file_path).split(os.sep)[-1]+'_label.png'
-          annotation_image_filename =  str(self.file_path).split(os.sep)[-1]+'_annotation.png'
+         classes_array = data['classes']
+         classes_array=classes_array.tolist()
 
      except KeyError as keyerr:
          logger.error(keyerr)
-         raise NPZCorruptException(msg="The contents of the NPZ file are invalid.")
+
+     classesfromfile = False
+     if 'classes_array' not in locals():
+         from tkinter import Tk
+         from tkinter.filedialog import askopenfilename
+         Tk().withdraw()
+         classfile = askopenfilename(title='Classes are missing. Select a file containing class (label) names', filetypes=[("Pick classes.txt file","*.txt")])
+         with open(classfile) as f:
+             classes = f.readlines()
+             classes_array = [c.strip() for c in classes]
+         classesfromfile = True
+
+     num_classes = len(classes_array)
+
+     # classes as integers
+     classes_integer = np.arange(1,num_classes)
+     classes_integer=classes_integer.tolist()
+
+     #classes acyually present in the scene
+     #unique finds all the unique items in an array and returns an array containing those items and flattens it into 1d [1,2],[3,4] becomes [1,2,3,4]
+     classes_present_integer = np.unique(data['label'].flatten())
+     classes_present_integer=classes_present_integer.tolist()
+
+
+     #classes present as string
+     #uses the indexes from the classes_present_integer to generate a string for all the classes present in the image
+     classes_present_array = [classes_array[k] for k in classes_present_integer]
+
+     doodle_spatial_density = np.sum(data['doodles'].flatten()>0) / np.prod(np.shape(data['doodles']))
+
+     ##number of input image bands
+     num_image_bands = np.ndim(data['image'])
+
+     #does 'settings exist'?
+     try:
+         settings = data['settings']
+     except KeyError as keyerr:
+         logger.error(keyerr)
+         settings = ['null']
+
+     ##new doodler: pen_width, crf_downsample_value, rf_downsample_value, crf_theta_slider_value, crf_mu_slider_value, gt_prob, n_sigmas
+     if len(settings)==6: #pre-scales
+          #pen width
+          pen_width =  data['settings'][0]
+
+          #CRF_theta
+          CRF_theta =  data['settings'][3]
+
+          #CRF_mu
+          CRF_mu =  data['settings'][4]
+
+          #CRF_downsample_factor
+          CRF_downsample_factor =  data['settings'][1]
+
+          #Classifier_downsample_factor
+          Classifier_downsample_factor =  data['settings'][2]
+
+          #prob_of_unary_potential
+          prob_of_unary_potential =  data['settings'][5]
+
+     elif len(settings)==7:#post-scales
+          #pen width
+          pen_width =  data['settings'][0]
+
+          #CRF_theta
+          CRF_theta =  data['settings'][3]
+
+          #CRF_mu
+          CRF_mu =  data['settings'][4]
+
+          #CRF_downsample_factor
+          CRF_downsample_factor =  data['settings'][1]
+
+          #Classifier_downsample_factor
+          Classifier_downsample_factor =  data['settings'][2]
+
+          #prob_of_unary_potential
+          prob_of_unary_potential =  data['settings'][5]
+
+          #number of scales
+          num_of_scales =  data['settings'][6]
+
+     if 'num_of_scales' not in locals():
+         num_of_scales='null'
+
+     if 'pen_width' not in locals():
+         pen_width='null'
+         CRF_theta ='null'
+         CRF_mu ='null'
+         CRF_downsample_factor ='null'
+         prob_of_unary_potential ='null'
+         num_of_scales = 'null'
+         Classifier_downsample_factor = 'null'
+
+     #name of image and label image that will be generated from the npz files
+     if self.user_ID == 'anon':
+      image_filename = str(self.file_path).split(os.sep)[-1]+'_image.jpg'.replace(self.file_name.split('.npz')[0].split('_')[-1], 'anon')
+      label_image_filename = str(self.file_path).split(os.sep)[-1]+'_label.png'.replace(self.file_name.split('.npz')[0].split('_')[-1], 'anon')
+      annotation_image_filename = str(self.file_path).split(os.sep)[-1]+'_annotation.png'.replace(self.file_name.split('.npz')[0].split('_')[-1], 'anon')
+     else:
+      image_filename = str(self.file_path).split(os.sep)[-1]+'_image.jpg'
+      label_image_filename =  str(self.file_path).split(os.sep)[-1]+'_label.png'
+      annotation_image_filename =  str(self.file_path).split(os.sep)[-1]+'_annotation.png'
+
+     # except KeyError as keyerr:
+     #     logger.error(keyerr)
+     #     raise NPZCorruptException(msg="The contents of the NPZ file are invalid.")
 
      # ####+==================================================================================================
      # ##DB's version of this code that also writes out the images, labels and annotation labesl to files
@@ -224,14 +284,14 @@ class JSON_npz:
                  classes_present_integer, classes_present_array,
                  pen_width, CRF_theta, CRF_mu, CRF_downsample_factor,
                  Classifier_downsample_factor, prob_of_unary_potential,
-                 doodle_spatial_density, num_image_bands]
+                 doodle_spatial_density, num_image_bands, num_of_scales] # added num_of_scales
 
      variable_names = ['image_filename', 'label_image_filename', 'annotation_image_filename',
                  'user_ID', 'classes_array', 'num_classes', 'classes_integer',
                  'classes_present_integer', 'classes_present_array',
                  'pen_width', 'CRF_theta', 'CRF_mu', 'CRF_downsample_factor',
                  'Classifier_downsample_factor', 'prob_of_unary_potential',
-                 'doodle_spatial_density']
+                 'doodle_spatial_density', 'num_of_scales'] # added num_of_scales
 
      info_for_mongo = dict()
      for n,v in zip(variable_names,variables):
@@ -247,7 +307,7 @@ class JSON_npz:
            self: instance variable
            mongo_dict: A dictionary created from the npz file.
         Returns:
-           
+
         Raises:
             TypeError: Cannot serialize the dictionary into JSON
             """
