@@ -209,27 +209,6 @@ class MainApp(tk.Tk):
         self.instructionframe=InstructionFrame(self)
         self.instructionframe.pack(side='top')
 
-    def alert_JSON_write(self,write_status,destination_path):
-        """"Writes a message to the log file depending on whether a successful write to the json file occured or not.
-
-       If write status is true it writes success message to the log file if at least one .npz file was written to the JSON file
-       specified by the destination_path.
-       If write status is false it means the .npz file was not written to the JSON file specified by the destination_path.
-
-        Args:
-             self: An instance of the MainApp class.
-             write_status: Boolean. True=Successful Write   False=Failed Write
-             destination_path: pathlib.path location of the file that was written to. 
-        Returns:
-           None.
-        Raises:
-            None.
-        """
-        if write_status:
-            self.logger.debug(f"\nSuccessful JSON CREATION\n The file was written to {destination_path}.\n")
-        else:
-            self.logger.debug(f"\nUnsuccessful JSON CREATION\nThe file was written to {destination_path}.\n")
-
     def read_files(self,source_path,npz_list,destination_path):
         """"Reads all the files in npz_list that are in the directory specified by source_path to the directory in destination_path
 
@@ -249,47 +228,59 @@ class MainApp(tk.Tk):
             IncorrectFileTypeException: A non .npz file was read causing an error
             IOError: An error occured while accessing the .npz file or json file.
         """
-        successful_write=False
+        successful_JSON_generated=False
         if npz_list == []:
             self.logger.exception("Empty listbox provided")
             self.EmptySource_box(source_path)
+        # Create a list to hold the JSON data that will be written to the file
+        JSONArray=[]
+        for entry in npz_list:
+            npz_file_path=source_path.joinpath(entry)
+            print(npz_file_path)
+            filename,file_extension= os.path.splitext(npz_file_path.name)
+            print(filename,file_extension)
+            # Initalize the NPZtoJSON class  with the path to the NPZ file and the name of the NPZ file
+            obj=NPZtoJSON(npz_file_path, npz_file_path.name);
+            try:
+                obj.check_file()                #Verify valid .npz file & if not correct file type trigger IncorrectFileTypeException
+                obj.get_user_ID()               #Get the User_ID from the .npz file
+                try:                            #If npz file is corrupt trigger NPZCorruptException
+                    # Create a dictionary based on the data in the npz file
+                    mongo_dict=obj.read_npz()
+                    try:
+                        # Convert the dictionary to JSON
+                        json_data=obj.create_json(mongo_dict)
+                        JSONArray.append(json_data)
+                    except UltimateException as strong_error:
+                        self.logger.exception(strong_error)
+                        self.Error_box("ERROR: Cannot create a JSON file exiting now.")
+                except NPZCorruptException as err:
+                    self.logger.exception(err)
+                    self.Invalid_npz_box(filename)
+            except IncorrectFileTypeException as npz_file_error:
+                self.logger.exception(npz_file_error)
+                self.Invalid_npz_box(filename)
         try:
             with open(destination_path,'a') as outfile:
-                for entry in npz_list:
-                    npz_file_path=source_path.joinpath(entry)
-                    print(npz_file_path)
-                    filename,file_extension= os.path.splitext(npz_file_path.name)
-                    print(filename,file_extension)
-                    obj=JSON_npz(npz_file_path, npz_file_path.name);
-                    try:
-                        obj.check_file()                         #if its a valid npz file then read the file
-                        obj.get_user_ID()
-                        try:
-                            mongo_dict=obj.read_npz()
-                            try:
-                                json_data=obj.create_json(mongo_dict)
-                                outfile.write(json_data)                #write the json data to the json file
-                                outfile.write("\n")                     #put a new line character after each json write
-                                successful_write=True
-                                self.alert_JSON_write(True,destination_path)
-                            except UltimateException as strong_error:
-                                self.logger.exception(strong_error)
-                                self.Error_box("ERROR: Cannot create a JSON file exiting now.")
-                        except NPZCorruptException as err:
-                            self.logger.exception(err)
-                            self.Invalid_npz_box(filename)
-                    except IncorrectFileTypeException as npz_file_error:
-                        self.logger.exception(npz_file_error)
-                        self.Invalid_npz_box(filename)
+                if JSONArray != []:
+                    #Last spot in JSONArray
+                    JSONArrayLastSpot=len(JSONArray)-1
+                    print("\n JSONArray",JSONArray)
+                    outfile.write("[")
+                    for item in JSONArray:
+                        outfile.write(item)
+                        # If the index of the current item is the last spot in the JSON array do NOT write the comma
+                        if JSONArray.index(item) != JSONArrayLastSpot:
+                            outfile.write(",")
+                    outfile.write("]")
+                    successful_JSON_generated=True
         except IOError as file_read_err:
             self.logger.error(file_read_err)
             self.Error_box("ERROR cannot read any files from {source_path}}.")
 
         #At the end check if at least one .npz file was converted to JSON successfully.
-        if successful_write:
+        if successful_JSON_generated:
             self.Success_box(destination_path)
-        if not successful_write:
-            self.alert_JSON_write(False,destination_path)
 
     def update_path_label(self,new_path):
         self.path_label.config( text=f"{new_path}")
@@ -378,6 +369,7 @@ class MainApp(tk.Tk):
         Raises:
            None.
         """  
+        # Check that the destination folder exists and if it does not then create one
         FileManipulators.verify_destination_exists(self.logger)
         destination_path=FileManipulators.create_destination_file()
         path_npz_str = self.path_label.cget("text")                      #receieves the path where the files are located.

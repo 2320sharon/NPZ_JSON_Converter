@@ -57,7 +57,7 @@ logger.setLevel(logging.INFO)
 formatter = logging.Formatter('%(levelname)s:%(name)s:%(message)s')
 #-----------------------------------------------------------------------------------------------------------------------
 
-class JSON_npz:
+class NPZtoJSON:
     """A class to hold all data associated with an npz file and contains methods to convert from npz to json.
     """
     def __init__(self,file_path,file_name,user_ID="",mongo_data=""):
@@ -85,8 +85,6 @@ class JSON_npz:
 
     def get_user_ID(self):
      """Returns the user_ID by using the file name.
-
-        Returns the user_ID by using the file name from the self method.
 
         Args:
             self: instance variable
