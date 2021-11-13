@@ -2,6 +2,27 @@ from datetime import datetime
 import os
 import pathlib
 
+def create_badFile_file():
+    """"Creates a json file in the in a folder called destination_files
+        
+    Creates a json file in the current working directory in a folder called \"destination_files\".
+        
+    Args:
+        None.
+
+    Returns:
+        A pathlib.Path containing the exact location of the .json file within the folder called destination_files
+        For example:
+            For a windows machine:
+                C:\programs\npz_to_json_converter\destination_files\npz_data_03-Sep-2021_07_47_48.json
+    Raises:
+        None.
+        """
+    timestampStr = datetime.now().strftime("%d-%b-%Y_%H_%M_%S")
+    dest_file="BadFiles_"+timestampStr+".txt"
+    result_path = pathlib.Path.cwd().joinpath('destination_files')
+    destination_path=result_path.joinpath(dest_file)
+    return destination_path
 
 def create_destination_file():
     """"Creates a json file in the in a folder called destination_files
