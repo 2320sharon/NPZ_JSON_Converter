@@ -234,6 +234,8 @@ class MainApp(tk.Tk):
             self.EmptySource_box(source_path)
         # Create a list to hold the JSON data that will be written to the file
         JSONArray=[]
+        classesArrayGiven=[]
+        badFilesList=[]
         for entry in npz_list:
             npz_file_path=source_path.joinpath(entry)
             print(npz_file_path)
@@ -246,7 +248,9 @@ class MainApp(tk.Tk):
                 obj.get_user_ID()               #Get the User_ID from the .npz file
                 try:                            #If npz file is corrupt trigger NPZCorruptException
                     # Create a dictionary based on the data in the npz file
-                    mongo_dict=obj.read_npz()
+                    # readClassesNPZ
+                    # Passes classes to npz
+                    classesArrayGiven,mongo_dict=obj.read_npz(classesArrayGiven)
                     try:
                         # Convert the dictionary to JSON
                         json_data=obj.create_json(mongo_dict)
@@ -255,10 +259,14 @@ class MainApp(tk.Tk):
                         self.logger.exception(strong_error)
                         self.Error_box("ERROR: Cannot create a JSON file exiting now.")
                 except NPZCorruptException as err:
+                    # Add to list of bad files
                     self.logger.exception(err)
+                    badFilesList.append(filename)
                     self.Invalid_npz_box(filename)
             except IncorrectFileTypeException as npz_file_error:
+                # Add to list of bad files
                 self.logger.exception(npz_file_error)
+                badFilesList.append(filename)
                 self.Invalid_npz_box(filename)
         try:
             with open(destination_path,'a') as outfile:
@@ -281,6 +289,7 @@ class MainApp(tk.Tk):
         #At the end check if at least one .npz file was converted to JSON successfully.
         if successful_JSON_generated:
             self.Success_box(destination_path)
+        print("\nBAD FILES:",badFilesList)     
 
     def update_path_label(self,new_path):
         self.path_label.config( text=f"{new_path}")
