@@ -101,14 +101,75 @@ class NPZtoJSON:
      logger.info(f"\n USER ID: {self.user_ID} for file: {self.file_name}")
      return self.user_ID
 
-    def read_npz(self):
+    def getClasses(self, classesArrayGiven):
+        """getClasses : gets a list of classses from the user provided npz file and if the npz file does not provide the classes. It either
+        prompts the user for a text file containing the names of the classes or uses the classesGivenArray to get the classes from when the user
+        previously entered the classes.
+
+        Args:
+            classesArrayGiven ([string]): classes given by the user given txt file with the names of the classes
+
+        Raises:
+            NPZCorruptException: raised if the keys in the npz file are invalid
+            NPZCorruptException: raised if there is an IOError reading the file
+
+        Returns:
+            isMissingClasses : returns true is classes were missing from the npz file
+            PrevMissingClasses : returns true if classes were missing from a previously read npz file
+            classes_array : returns the classes read from the npz or the user provided class.txt
+        """
+        # PrevMissingClasses: true: previous files had missing classes so use classesArrayGiven
+        # PrevMissingClasses: false: no previous files had missing classes you many need to populate classesArrayGiven
+        PrevMissingClasses=False
+        data = dict()
+        try:
+           with load(self.file_path, allow_pickle=True) as dat:
+               for k in dat.keys():
+                   try:
+                       data[k] = dat[k]
+                   except KeyError as key_error:
+                       raise NPZCorruptException()   
+               del dat
+        except IOError as err:
+            logger.error(err)
+            raise  NPZCorruptException(msg=err.__str__)
+
+         # isMissingClasses default true, but if classes are missing set to true
+        isMissingClasses=False 
+        try:
+              classes_array = data['classes']
+              classes_array=classes_array.tolist()
+        except KeyError as keyerr:
+              logger.error(keyerr)
+    
+         # If classesArrayGiven = [] : means no missing classes have been detected before so prompt the user for classes
+        if 'classes_array' not in locals() and classesArrayGiven == []:
+              from tkinter import Tk
+              from tkinter.filedialog import askopenfilename
+              Tk().withdraw()
+              classfile = askopenfilename(title='Classes are missing. Select a file containing class (label) names', filetypes=[("Pick classes.txt file","*.txt")])
+              with open(classfile) as f:
+                  classes = f.readlines()
+                  classesArrayGiven = [c.strip() for c in classes]
+              isMissingClasses=True
+              return isMissingClasses,PrevMissingClasses,classesArrayGiven
+        elif 'classes_array' not in locals() and classesArrayGiven != []:
+              isMissingClasses=True            
+              PrevMissingClasses=True
+              return isMissingClasses,PrevMissingClasses,classesArrayGiven
+    
+         #If files were present in the npz file this line will run
+        return isMissingClasses,PrevMissingClasses,classes_array
+
+    def read_npz(self,classesArrayGiven):
      """read_npz: Reads the contents of the npz file and transforms it into a dictionary.
 
         Args:
             self: instance variable
 
         Returns:
-           If successful: returns a dictionary containing data from the npz file.
+           If successful: returns a dictionary containing data from the npz file and classesGivenArray containing classes provided by the user for any
+           npx files that were missing classes.
 
      Raises:
             NPZCorruptException: An error occurred while reading the npz file.
@@ -132,37 +193,26 @@ class NPZtoJSON:
          logger.error(err)
          raise  NPZCorruptException(msg=err.__str__)
 
-     #keys of the new dictionary
-
-     #array of class names
+     #classes acyually present in the scene
+     #unique finds all the unique items in an array and returns an array containing those items and flattens it into 1d [1,2],[3,4] becomes [1,2,3,4]
      try:
-         classes_array = data['classes']
-         classes_array=classes_array.tolist()
+        classes_present_integer = np.unique(data['label'].flatten())
+        classes_present_integer=classes_present_integer.tolist()
+     except KeyError as key_error:
+        raise NPZCorruptException()   #triggers an error message stating this npz file was corrupted is formated incorrectly
 
-     except KeyError as keyerr:
-         logger.error(keyerr)
+     isMissingClasses,PrevMissingClasses,classes_array=self.getClasses(classesArrayGiven)
 
-     classesfromfile = False
-     if 'classes_array' not in locals():
-         from tkinter import Tk
-         from tkinter.filedialog import askopenfilename
-         Tk().withdraw()
-         classfile = askopenfilename(title='Classes are missing. Select a file containing class (label) names', filetypes=[("Pick classes.txt file","*.txt")])
-         with open(classfile) as f:
-             classes = f.readlines()
-             classes_array = [c.strip() for c in classes]
-         classesfromfile = True
+     #  if classes were missing and no previous files had missing classes update classes given array so any other files with missing classes use
+     # classesArrayGiven instead of prompting the user for another classes.txt file
+     if (isMissingClasses == True and PrevMissingClasses ==False):
+         classesArrayGiven=classes_array
 
      num_classes = len(classes_array)
 
      # classes as integers
      classes_integer = np.arange(1,num_classes)
      classes_integer=classes_integer.tolist()
-
-     #classes acyually present in the scene
-     #unique finds all the unique items in an array and returns an array containing those items and flattens it into 1d [1,2],[3,4] becomes [1,2,3,4]
-     classes_present_integer = np.unique(data['label'].flatten())
-     classes_present_integer=classes_present_integer.tolist()
 
 
      #classes present as string
@@ -296,7 +346,7 @@ class NPZtoJSON:
          info_for_mongo[n] = v
 
      logger.info(f"\nMongo Dict: {info_for_mongo}\nFile:{self.file_name}\n")
-     return info_for_mongo
+     return classesArrayGiven,info_for_mongo
 
     def create_json(self,mong_dict):
         """"Creates a json file using the mongo dictionary provided by mongo_dict.

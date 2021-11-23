@@ -29,8 +29,8 @@ class MainApp(tk.Tk):
 
     #                                                   DIALOG BOXES
     #-----------------------------------------------------------------------------------------------------------------------
-    def Error_box(self,msg):
-        """" A system error dialog box that informs the user an recoverable error has occured and the prorgram will quit. 
+    def CriticalErrorBox(self,msg):
+        """" A system error dialog box that informs the user an recoverable error has occured and the program will quit. 
         Args:
             self: An instance of the MainApp class
             msg: A custom msg provided by the program that typically specifies what kind of error occured.
@@ -42,6 +42,19 @@ class MainApp(tk.Tk):
         """
         messagebox.showerror(title='ERROR', message=f"{msg}\nThere has been an unrecoverable error.\nExiting now")
         self.quit()
+
+    def ErrorBox(self,msg):
+        """" A system error dialog box that informs the user an recoverable error has occured and the program will quit. 
+        Args:
+            self: An instance of the MainApp class
+            msg: A custom msg provided by the program that typically specifies what kind of error occured.
+
+        Returns:
+            None
+        Raises:
+            None
+        """
+        messagebox.showerror(title='ERROR', message=f"{msg}")
 
     def EmptySource_box(self,npz_path):
         """" A system error dialog box that asks the user to choose a directory to open .npz files with or quits the program
@@ -234,11 +247,11 @@ class MainApp(tk.Tk):
             self.EmptySource_box(source_path)
         # Create a list to hold the JSON data that will be written to the file
         JSONArray=[]
+        classesArrayGiven=[]
+        badFilesList=[]
         for entry in npz_list:
             npz_file_path=source_path.joinpath(entry)
-            print(npz_file_path)
             filename,file_extension= os.path.splitext(npz_file_path.name)
-            print(filename,file_extension)
             # Initalize the NPZtoJSON class  with the path to the NPZ file and the name of the NPZ file
             obj=NPZtoJSON(npz_file_path, npz_file_path.name);
             try:
@@ -246,20 +259,26 @@ class MainApp(tk.Tk):
                 obj.get_user_ID()               #Get the User_ID from the .npz file
                 try:                            #If npz file is corrupt trigger NPZCorruptException
                     # Create a dictionary based on the data in the npz file
-                    mongo_dict=obj.read_npz()
+                    # readClassesNPZ
+                    # Passes classes to npz
+                    classesArrayGiven,mongo_dict=obj.read_npz(classesArrayGiven)
                     try:
                         # Convert the dictionary to JSON
                         json_data=obj.create_json(mongo_dict)
                         JSONArray.append(json_data)
                     except UltimateException as strong_error:
                         self.logger.exception(strong_error)
-                        self.Error_box("ERROR: Cannot create a JSON file exiting now.")
+                        self.CriticalErrorBox("ERROR: Cannot create a JSON file exiting now.")
                 except NPZCorruptException as err:
+                    # Add to list of bad files
                     self.logger.exception(err)
-                    self.Invalid_npz_box(filename)
+                    badFilesList.append(npz_file_path.name)
+                    self.Invalid_npz_box(npz_file_path.name)
             except IncorrectFileTypeException as npz_file_error:
+                # Add to list of bad files
                 self.logger.exception(npz_file_error)
-                self.Invalid_npz_box(filename)
+                badFilesList.append(npz_file_path.name)
+                self.Invalid_npz_box(npz_file_path.name)
         try:
             with open(destination_path,'a') as outfile:
                 if JSONArray != []:
@@ -276,12 +295,20 @@ class MainApp(tk.Tk):
                     successful_JSON_generated=True
         except IOError as file_read_err:
             self.logger.error(file_read_err)
-            self.Error_box("ERROR cannot read any files from {source_path}}.")
+            self.CriticalErrorBox("ERROR cannot read any files from {source_path}}.")
 
         #At the end check if at least one .npz file was converted to JSON successfully.
         if successful_JSON_generated:
             self.Success_box(destination_path)
 
+        # Only print the bad files to a text file if there are any to print
+        if badFilesList != []:
+            badFilePath=FileManipulators.create_badFile_file()
+            with open(badFilePath, 'a') as writer:
+                for file in badFilesList:
+                    writer.write(file+"\n")
+            self.ErrorBox(f"A list of invalid files have been written to: ${badFilePath}")
+             
     def update_path_label(self,new_path):
         self.path_label.config( text=f"{new_path}")
 
@@ -325,7 +352,7 @@ class MainApp(tk.Tk):
                 return []
         else:
             print("path does not exist")
-            self.Error_box(msg=f"ERROR\nThe folder {path_npz} does not exist.\n")
+            self.CriticalErrorBox(msg=f"ERROR\nThe folder {path_npz} does not exist.\n")
             return []
 
     def open_file_dialog(self):
@@ -347,6 +374,9 @@ class MainApp(tk.Tk):
 
         #Update the list box
         files_list=self.create_file_list(path_npz)
+        files_list.sort()
+        # Reverse because insert the array from bottom to top in listbox
+        files_list.reverse()
 
         #delete everything from listbox first to ensure clean insert
         self.deleteAll_listbox()
